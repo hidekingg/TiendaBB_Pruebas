@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block header_title %}Gestión de Roles y Permisos{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="rolesManager()">
+    
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <h2 class="text-2xl font-black text-gray-800">Roles del Sistema</h2>
+            <p class="text-sm text-gray-500 font-medium">Crea y edita perfiles de trabajo para tus empleados.</p>
+        </div>
+        <button @click="openModal('create')" class="bg-[#3e1717] hover:bg-[#2a1010] text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition active:scale-95 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nuevo Rol
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <div x-show="isLoading" class="col-span-full py-10 text-center text-gray-400 font-bold">Cargando roles...</div>
+
+        <template x-for="role in roles" :key="role.id">
+            <div class="bg-white rounded-2xl shadow-sm border p-6 flex flex-col relative transition-all hover:shadow-md"
+                 :class="role.is_admin ? 'border-yellow-400 bg-yellow-50/20' : 'border-gray-200'">
+                 
+                 <div x-show="role.is_admin" class="absolute -top-3 -right-3 bg-yellow-400 text-yellow-900 rounded-full p-2 shadow-lg" title="Rol Inamovible">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                 </div>
+
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-12 w-12 rounded-xl flex items-center justify-center font-black text-xl shadow-sm"
+                         :class="role.is_admin ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'" x-text="role.name.charAt(0)"></div>
+                    <div>
+                        <h3 class="text-xl font-black text-gray-900 leading-tight" x-text="role.name"></h3>
+                        <p class="text-xs font-bold text-gray-500 flex items-center gap-1 mt-0.5">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <span x-text="`${role.users_count} usuarios activos`"></span>
+                        </p>
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-600 mb-6 flex-1" x-text="role.description || 'Sin descripción detallada.'"></p>
+
+                <div class="flex gap-2 border-t border-gray-100 pt-4">
+                    <button @click="openModal('update', role)" class="flex-1 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold rounded-lg transition text-sm">
+                        Editar
+                    </button>
+                    <button @click="deleteRole(role.id)" :disabled="role.is_admin" class="px-4 py-2 bg-red-50 text-red-700 hover:bg-red-100 font-bold rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" @click="showModal = false"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-black text-gray-800" x-text="formAction === 'create' ? 'Crear Nuevo Rol' : 'Editar Rol'"></h3>
+                <button @click="showModal = false" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            
+            <form @submit.prevent="submitForm" class="p-6 space-y-4">
+                
+                <div x-show="formData.is_admin" class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded text-xs text-yellow-800 font-medium">
+                    Estás editando el rol <b>Maestro</b>. Por seguridad, no puedes cambiarle el nombre.
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Nombre del Rol *</label>
+                    <input type="text" x-model="formData.name" :disabled="formData.is_admin" required class="w-full border-2 border-gray-300 rounded-lg p-3 font-bold text-gray-800 focus:border-[#3e1717] outline-none disabled:bg-gray-100 disabled:text-gray-400">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Descripción / Permisos</label>
+                    <textarea x-model="formData.description" rows="3" class="w-full border-2 border-gray-300 rounded-lg p-3 font-medium text-gray-800 focus:border-[#3e1717] outline-none placeholder-gray-400" placeholder="Ej: Encargado de realizar ventas y cortes de caja..."></textarea>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" @click="showModal = false" class="w-1/3 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">Cancelar</button>
+                    <button type="submit" class="w-2/3 py-3 bg-[#3e1717] text-white font-black rounded-xl shadow-lg hover:bg-[#2a1010] active:scale-95 transition" x-text="formAction === 'create' ? 'Guardar Rol' : 'Actualizar Cambios'"></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function rolesManager() {
+        return {
+            roles: [],
+            isLoading: false,
+            showModal: false,
+            formAction: 'create',
+            formData: { id: '', name: '', description: '', is_admin: false },
+
+            init() { this.loadRoles(); },
+
+            async loadRoles() {
+                this.isLoading = true;
+                try {
+                    const res = await fetch('/api/admin/roles/lista/');
+                    if(res.ok) this.roles = await res.json();
+                } catch(e) { console.error(e); }
+                this.isLoading = false;
+            },
+
+            openModal(action, role = null) {
+                this.formAction = action;
+                if (action === 'update' && role) {
+                    this.formData = { id: role.id, name: role.name, description: role.description, is_admin: role.is_admin };
+                } else {
+                    this.formData = { id: '', name: '', description: '', is_admin: false };
+                }
+                this.showModal = true;
+            },
+
+            async submitForm() {
+                const form = new FormData();
+                form.append('accion', this.formAction);
+                if (this.formAction === 'update') form.append('role_id', this.formData.id);
+                form.append('name', this.formData.name);
+                form.append('description', this.formData.description);
+
+                try {
+                    const res = await fetch('/api/admin/roles/accion/', { method: 'POST', body: form });
+                    const data = await res.json();
+                    
+                    if (data.status === 'success') {
+                        Swal.fire({icon: 'success', title: '¡Éxito!', text: data.message, timer: 1500, showConfirmButton: false});
+                        this.showModal = false;
+                        this.loadRoles();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (e) { Swal.fire('Error', 'Problema de red', 'error'); }
+            },
+
+            async deleteRole(id) {
+                const result = await Swal.fire({
+                    title: '¿Eliminar Rol?',
+                    text: "Esta acción no se puede deshacer.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (result.isConfirmed) {
+                    const form = new FormData();
+                    form.append('accion', 'delete');
+                    form.append('role_id', id);
+
+                    try {
+                        const res = await fetch('/api/admin/roles/accion/', { method: 'POST', body: form });
+                        const data = await res.json();
+                        
+                        if (data.status === 'success') {
+                            Swal.fire({icon: 'success', title: 'Eliminado', text: data.message, timer: 1500, showConfirmButton: false});
+                            this.loadRoles();
+                        } else {
+                            Swal.fire('No permitido', data.message, 'warning');
+                        }
+                    } catch (e) { Swal.fire('Error', 'Problema de conexión', 'error'); }
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

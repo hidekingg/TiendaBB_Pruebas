@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% block header_title %}Historial de Precios y Costos{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="priceHistoryManager()">
+    
+    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 border border-gray-200 items-end">
+        
+        <div class="w-full md:w-2/5">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Buscar Producto</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <input type="text" x-model="filters.q" @keydown.enter="loadHistory(1)" class="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg font-bold text-gray-700 focus:border-[#3e1717] outline-none" placeholder="Nombre o código de barras...">
+            </div>
+        </div>
+
+        <div class="w-full md:w-1/5">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Fecha Inicio</label>
+            <input type="date" x-model="filters.start" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/5">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Fecha Fin</label>
+            <input type="date" x-model="filters.end" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/5 flex gap-2">
+            <button @click="loadHistory(1)" class="flex-1 bg-[#3e1717] text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-[#2a1010] transition active:scale-95 flex items-center justify-center gap-2">
+                Filtrar
+            </button>
+            <button @click="resetFilters()" class="px-4 bg-gray-200 text-gray-700 font-bold py-2.5 rounded-lg shadow-sm hover:bg-gray-300 transition" title="Limpiar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider font-black">
+                        <th class="p-4">Fecha y Hora</th>
+                        <th class="p-4">Producto</th>
+                        <th class="p-4 text-center">Evolución de Costo</th>
+                        <th class="p-4">Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr x-show="isLoading"><td colspan="4" class="p-8 text-center text-gray-400 font-bold">Buscando registros...</td></tr>
+                    <tr x-show="!isLoading && history.length === 0"><td colspan="4" class="p-8 text-center text-gray-400 font-bold">No se encontraron cambios de precio.</td></tr>
+                    
+                    <template x-for="item in history" :key="item.id">
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="p-4 text-sm font-bold text-gray-700 whitespace-nowrap" x-text="item.date"></td>
+                            
+                            <td class="p-4">
+                                <p class="text-sm font-black text-gray-900 leading-tight" x-text="item.product_name"></p>
+                                <p class="text-[10px] font-mono text-gray-400 mt-0.5" x-text="`CÓDIGO: ${item.barcode}`"></p>
+                            </td>
+                            
+                            <td class="p-4">
+                                <div class="flex items-center justify-center gap-3 bg-white border rounded-lg py-1.5 px-3 w-max mx-auto shadow-sm"
+                                     :class="getTrendClass(item.old_cost, item.new_cost)">
+                                    
+                                    <span class="text-sm font-bold text-gray-500 line-through" x-text="formatMoney(item.old_cost)"></span>
+                                    
+                                    <svg x-show="item.new_cost > item.old_cost" class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                                    <svg x-show="item.new_cost < item.old_cost" class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"/></svg>
+                                    <svg x-show="item.new_cost === item.old_cost" class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+
+                                    <span class="text-base font-black" :class="getTrendTextClass(item.old_cost, item.new_cost)" x-text="formatMoney(item.new_cost)"></span>
+                                </div>
+                            </td>
+                            
+                            <td class="p-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-black text-[10px]" x-text="item.user.charAt(0)"></div>
+                                    <span class="text-xs font-bold text-gray-700" x-text="item.user"></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-xs font-bold text-gray-500">
+                Registros encontrados: <span class="text-gray-900 text-sm" x-text="pagination.total_records"></span>
+            </div>
+            
+            <div class="flex gap-2" x-show="pagination.num_pages > 1">
+                <button @click="loadHistory(pagination.current_page - 1)" :disabled="!pagination.has_previous" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition">
+                    Anterior
+                </button>
+                
+                <span class="px-4 py-2 text-sm font-black text-[#3e1717] bg-red-50 border border-red-100 rounded-lg flex items-center">
+                    <span x-text="pagination.current_page"></span>&nbsp;/&nbsp;<span x-text="pagination.num_pages"></span>
+                </span>
+                
+                <button @click="loadHistory(pagination.current_page + 1)" :disabled="!pagination.has_next" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition">
+                    Siguiente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function priceHistoryManager() {
+        return {
+            history: [],
+            isLoading: false,
+            filters: { q: '', start: '', end: '' },
+            pagination: { current_page: 1, num_pages: 1, has_next: false, has_previous: false, total_records: 0 },
+
+            init() {
+                // Últimos 30 días por defecto
+                const today = new Date();
+                const lastMonth = new Date();
+                lastMonth.setDate(today.getDate() - 30);
+                
+                this.filters.end = today.toISOString().split('T')[0];
+                this.filters.start = lastMonth.toISOString().split('T')[0];
+                
+                this.loadHistory(1);
+            },
+
+            formatMoney(val) { return new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN'}).format(val||0); },
+
+            async loadHistory(page = 1) {
+                this.isLoading = true;
+                const params = new URLSearchParams({
+                    q: this.filters.q,
+                    start: this.filters.start,
+                    end: this.filters.end,
+                    page: page
+                });
+                
+                try {
+                    const res = await fetch(`/api/admin/precios-historicos/lista/?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.history = data.history;
+                        this.pagination = data.pagination;
+                    }
+                } catch (e) { console.error(e); }
+                this.isLoading = false;
+            },
+
+            resetFilters() {
+                this.filters.q = '';
+                this.init(); 
+            },
+
+            getTrendClass(oldCost, newCost) {
+                if (newCost > oldCost) return 'border-red-200 bg-red-50/30';
+                if (newCost < oldCost) return 'border-green-200 bg-green-50/30';
+                return 'border-gray-200 bg-gray-50';
+            },
+
+            getTrendTextClass(oldCost, newCost) {
+                if (newCost > oldCost) return 'text-red-700';
+                if (newCost < oldCost) return 'text-green-700';
+                return 'text-gray-700';
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block header_title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto pb-20 px-4">
+
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800">Bienvenido, {{ nombre_usuario }}</h2>
+        <p class="text-gray-500 text-sm">Selecciona una opción para gestionar el sistema.</p>
+    </div>
+
+    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">Control de Ventas y Libreta de compras</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+
+        <a href="{% url 'libreta_precios' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-orange-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-orange-50 text-orange-600 rounded-full mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Libreta de Compras</h4>
+            <p class="text-xs text-gray-500">Consulta y edita precios de proveedores en la calle.</p>
+        </a>
+
+        <a href="{% url 'admin_ventas' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-green-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-green-50 text-green-600 rounded-full mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Ventas / Tickets</h4>
+            <p class="text-xs text-gray-500">Historial y cancelación de operaciones.</p>
+        </a>
+
+        <a href="{% url 'admin_conteo' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-purple-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-purple-50 text-purple-600 rounded-full mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Auditoría Física</h4>
+            <p class="text-xs text-gray-500">Conteo real y ajuste rápido de inventarios.</p>
+        </a>
+
+    </div>
+
+    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">Catálogo y Proveeduría</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+
+        <a href="{% url 'admin_productos' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-[#3e1717] hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg">ACTIVO</div>
+            <div class="p-4 bg-red-50 text-[#3e1717] rounded-full mb-4 group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Productos</h4>
+            <p class="text-xs text-gray-500">Alta, baja y edición del catálogo.</p>
+        </a>
+
+        <a href="{% url 'admin_promociones' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-yellow-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg">NUEVO</div>
+            <div class="p-4 bg-yellow-50 text-yellow-600 rounded-full mb-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Promociones</h4>
+            <p class="text-xs text-gray-500">Configurar ofertas y paquetes 3x2.</p>
+        </a>
+
+        <a href="{% url 'admin_proveedores' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-blue-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-blue-50 text-blue-600 rounded-full mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Proveedores</h4>
+            <p class="text-xs text-gray-500">Administrar empresas de surtido.</p>
+        </a>
+
+        <a href="{% url 'admin_marcas' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-indigo-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Marcas</h4>
+            <p class="text-xs text-gray-500">Registrar marcas de productos.</p>
+        </a>
+        
+        <a href="{% url 'admin_categorias' %}" class="group bg-white p-6 rounded-2xl shadow-md border-l-4 border-teal-500 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center text-center">
+            <div class="p-4 bg-teal-50 text-teal-600 rounded-full mb-4 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            </div>
+            <h4 class="text-lg font-black text-gray-900 mb-1">Categorías</h4>
+            <p class="text-xs text-gray-500">Agrupar inventario por familia.</p>
+        </a>
+
+    </div>
+
+    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">Control Interno y Seguridad</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <a href="{% url 'admin_auditoria' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Auditoría</span>
+        </a>
+
+        <a href="{% url 'admin_historial_precios' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Precios Históricos</span>
+        </a>
+
+        <a href="{% url 'admin_movimientos_stock' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Movimientos Stock</span>
+        </a>
+
+        <a href="{% url 'admin_roles' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Gestionar Roles</span>
+        </a>
+
+        <a href="{% url 'admin_turnos' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Verificar Turnos</span>
+        </a>
+
+        <a href="{% url 'admin_usuarios' %}" class="group bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-[#3e1717] flex items-center gap-3 transition-colors">
+            <div class="p-2 bg-gray-100 rounded-lg group-hover:bg-[#3e1717] group-hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </div>
+            <span class="text-sm font-bold text-gray-700">Administrar Usuarios</span>
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}

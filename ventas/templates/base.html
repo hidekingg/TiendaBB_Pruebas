@@ -1,0 +1,187 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-100 light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Básicos El Baratillo{% endblock %}</title>
+    
+    <meta name="color-scheme" content="light">
+
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        /* Forzamos color de texto oscuro. Respetamos el bg-gray-100 de tu clase html */
+        body {
+            color: #111827 !important; /* Texto casi negro siempre */
+        }
+        /* Corrección vital para inputs en celulares con modo oscuro */
+        input, select, textarea {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-color: #d1d5db; /* gray-300 */
+        }
+    </style>
+
+    {% tailwind_css %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full">
+
+<div class="min-h-full">
+  <nav class="bg-[#3e1717]">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <div class="flex items-center">
+          
+          <div class="shrink-0">
+             <img class="size-10 bg-white rounded-full p-1" src="{% static 'ventas/BBLogo.png' %}" alt="El Baratillo">
+          </div>
+          
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              {% with request.resolver_match.url_name as url_name %}
+              
+              <a href="{% url 'dashboard_admin' %}" 
+                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'dashboard_admin' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 Resumen
+              </a>
+
+              <a href="{% url 'punto_venta' %}" 
+                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'punto_venta' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 Punto de Venta
+              </a>
+
+              <a href="{% url 'inventario' %}" 
+                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'inventario' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 Inventario
+              </a>
+
+              <a href="{% url 'reporte_finanzas' %}" 
+                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'reporte_finanzas' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 Reportes
+              </a>
+
+              {% if request.session.user_role == 'ADMIN' %}
+              <a href="{% url 'menu_administracion' %}" 
+                 class="rounded-md px-3 py-2 text-sm font-medium border border-red-800 {% if url_name == 'admin_productos' %}bg-[#2a1010] text-white{% else %}text-red-200 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 Administración
+              </a>
+              {% endif %}
+              
+              {% endwith %}
+            </div>
+          </div>
+        </div>
+
+        <div class="hidden md:block">
+          <div class="ml-4 flex items-center md:ml-6">
+            
+            <button type="button" class="relative rounded-full p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+              <span class="absolute -inset-1.5"></span>
+              <span class="sr-only">Ver notificaciones</span>
+              <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+              </svg>
+            </button>
+
+            <el-dropdown class="relative ml-3">
+              <button class="relative flex max-w-xs items-center rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                <span class="absolute -inset-1.5"></span>
+                <span class="sr-only">Abrir menú usuario</span>
+                
+                {% if request.session.user_photo %}
+                    <img class="h-8 w-8 rounded-full object-cover" src="{{ request.session.user_photo }}" alt="Perfil">
+                {% else %}
+                    <div class="h-8 w-8 rounded-full bg-[#ff4f4f] flex items-center justify-center text-white font-bold">
+                        {{ request.session.user_name|slice:":1"|default:"U" }}
+                    </div>
+                {% endif %}
+                </button>
+
+              <el-menu anchor="bottom end" popover class="w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition transition-discrete [--anchor-gap:--spacing(2)] data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in">
+                <div class="px-4 py-2 border-b border-gray-100">
+                    <p class="text-sm font-medium text-gray-900">{{ request.session.user_name }}</p>
+                    <p class="text-xs text-gray-500">{{ request.session.user_role }}</p>
+                </div>
+                <a href="{% url 'perfil' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mi Perfil</a>
+                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Configuración</a>
+                <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Cerrar Sesión</a>
+              </el-menu>
+            </el-dropdown>
+          </div>
+        </div>
+
+        <div class="-mr-2 flex md:hidden">
+          <button type="button" command="--toggle" commandfor="mobile-menu" class="relative inline-flex items-center justify-center rounded-md bg-[#2a1010] p-2 text-gray-400 hover:bg-[#4a2020] hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+            <span class="absolute -inset-0.5"></span>
+            <span class="sr-only">Abrir menú</span>
+            <svg class="block size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <el-disclosure id="mobile-menu" hidden class="block md:hidden bg-[#3e1717]">
+      <div class="space-y-1 px-2 pt-2 pb-3 sm:px-3">
+        <a href="{% url 'dashboard_admin' %}" class="block rounded-md bg-[#2a1010] px-3 py-2 text-base font-medium text-white">Resumen</a>
+        <a href="{% url 'punto_venta' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Punto de Venta</a>
+        <a href="{% url 'inventario' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Inventario</a>
+        <a href="{% url 'reporte_finanzas' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Reportes</a>
+        
+        {% if request.session.user_role == 'ADMIN' %}
+        <a href="{% url 'menu_administracion' %}"  class="block rounded-md px-3 py-2 text-base font-medium text-red-200 border-l-4 border-red-500 bg-[#2a1010]/50 hover:bg-[#4a2020] hover:text-white">Administración</a>
+        {% endif %}
+      </div>
+      <div class="border-t border-gray-700 pt-4 pb-3">
+        <div class="flex items-center px-5">
+          <div class="shrink-0">
+              
+             {% if request.session.user_photo %}
+                <img class="h-10 w-10 rounded-full object-cover border-2 border-white/10" src="{{ request.session.user_photo }}" alt="Perfil">
+             {% else %}
+                <div class="h-10 w-10 rounded-full bg-[#ff4f4f] flex items-center justify-center text-white font-bold text-lg">
+                    {{ request.session.user_name|slice:":1"|default:"U" }}
+                </div>
+             {% endif %}
+
+          </div>
+          <div class="ml-3">
+            <div class="text-base font-medium leading-none text-white">{{ request.session.user_name }}</div>
+            <div class="text-sm font-medium leading-none text-gray-400 mt-1">{{ request.session.user_role }}</div>
+          </div>
+        </div>
+        <div class="mt-3 space-y-1 px-2">
+            <a href="{% url 'logout' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-[#4a2020] hover:text-white">Cerrar Sesión</a>
+        </div>
+      </div>
+    </el-disclosure>
+  </nav>
+
+  <header class="bg-white shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight text-[#3e1717]">
+        {% block header_title %}Dashboard{% endblock %}
+      </h1>
+      {% block header_actions %}{% endblock %}
+    </div>
+  </header>
+
+  <main>
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

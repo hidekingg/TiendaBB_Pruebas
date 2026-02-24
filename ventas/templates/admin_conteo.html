@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block header_title %}Verificación Física de Inventario{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    
+    /* =========================================
+       ESTILOS PARA IMPRESIÓN PROFESIONAL COMPACTA
+       ========================================= */
+    @media print {
+        nav, header, aside, footer, .no-print { display: none !important; }
+        
+        body { 
+            background: white !important; 
+            margin: 0; 
+            padding: 0; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+        }
+        
+        div[x-show="showModal"] {
+            position: static !important;
+            width: 100% !important;
+            height: auto !important;
+            display: block !important; 
+            background: none !important;
+        }
+        
+        div[x-show="showModal"] > div.bg-white {
+            position: static !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 0 !important;
+        }
+        
+        #print-area {
+            padding: 10px 20px !important;
+        }
+        
+        .print-header-bg {
+            background-color: #3e1717 !important;
+            color: white !important;
+        }
+    }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="conteoManager()">
+    
+    <div class="flex border-b border-gray-200 mb-6 no-print">
+        <button @click="tab = 'nuevo'" class="py-3 px-6 font-bold text-sm border-b-2 transition" :class="tab === 'nuevo' ? 'border-[#3e1717] text-[#3e1717]' : 'border-transparent text-gray-500 hover:text-gray-700'">Nuevo Conteo</button>
+        <button @click="tab = 'historial'; loadHistory();" class="py-3 px-6 font-bold text-sm border-b-2 transition" :class="tab === 'historial' ? 'border-[#3e1717] text-[#3e1717]' : 'border-transparent text-gray-500 hover:text-gray-700'">Historial de Auditorías</button>
+    </div>
+
+    <div x-show="tab === 'nuevo'" x-cloak class="no-print">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 items-end">
+            <div class="flex-1 w-full">
+                <label class="block text-xs font-black text-gray-500 uppercase mb-2 tracking-wide">1. Selecciona la Categoría a verificar</label>
+                <select x-model="selectedCategory" class="w-full border-2 border-gray-200 rounded-lg p-3 font-bold text-gray-800 focus:border-[#3e1717] outline-none">
+                    <option value="">-- Elige una categoría --</option>
+                    {% for cat in categorias %}
+                        <option value="{{ cat.category_id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button @click="loadProducts()" :disabled="!selectedCategory" class="w-full md:w-auto px-6 py-3 bg-[#3e1717] text-white font-bold rounded-lg shadow-md hover:bg-[#2a1010] transition disabled:opacity-50 flex gap-2 justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                Generar Lista
+            </button>
+        </div>
+
+        <div x-show="products.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+            <div class="bg-blue-50 border-b border-blue-100 p-4 text-sm text-blue-800 font-medium">
+                <b>Instrucciones:</b> Cuenta los productos físicamente. Si la cantidad real es <b>igual</b> a la del sistema, deja el recuadro en blanco. Si es diferente, anota la cantidad real.
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider font-black">
+                            <th class="p-4 w-16 text-center">Foto</th>
+                            <th class="p-4">Producto</th>
+                            <th class="p-4 text-center">Stock Sistema</th>
+                            <th class="p-4 text-center w-40">Stock Real Físico</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="p in products" :key="p.id">
+                            <tr class="hover:bg-gray-50 transition-colors" :class="hasDiff(p) ? 'bg-orange-50/30' : ''">
+                                <td class="p-4">
+                                    <div class="h-10 w-10 bg-gray-200 rounded shrink-0 bg-cover bg-center mx-auto" :style="p.photo ? `background-image: url('${p.photo}')` : ''"></div>
+                                </td>
+                                <td class="p-4">
+                                    <p class="text-sm font-black text-gray-900 leading-tight" x-text="p.name"></p>
+                                    <p class="text-[10px] font-mono text-gray-500 mt-0.5" x-text="p.barcode"></p>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <span class="text-lg font-black text-gray-600" x-text="p.system_qty"></span>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <input type="number" step="0.001" x-model="p.counted_qty" placeholder="-" 
+                                           class="w-full text-center border-2 rounded-lg py-2 font-black text-lg focus:outline-none transition-colors"
+                                           :class="hasDiff(p) ? 'border-orange-400 bg-orange-50 text-orange-800' : 'border-gray-200 focus:border-[#3e1717]'">
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="p-6 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                <span class="text-sm font-bold text-gray-600">Diferencias detectadas: <span class="text-orange-600 text-lg ml-1" x-text="getDiffCount()"></span></span>
+                <button @click="submitCount()" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl shadow-lg transition active:scale-95">
+                    Finalizar Verificación
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="tab === 'historial'" x-cloak class="no-print">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider font-black">
+                        <th class="p-4">Fecha y Hora</th>
+                        <th class="p-4">Categoría Auditada</th>
+                        <th class="p-4">Responsable</th>
+                        <th class="p-4 text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr x-show="history.length === 0"><td colspan="4" class="p-8 text-center text-gray-400 font-bold">No hay conteos previos.</td></tr>
+                    <template x-for="item in history" :key="item.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-4 text-sm font-bold text-gray-700" x-text="item.date"></td>
+                            <td class="p-4 text-sm font-black text-gray-900" x-text="item.category"></td>
+                            <td class="p-4 text-sm text-gray-600 font-medium" x-text="item.user"></td>
+                            <td class="p-4 text-center">
+                                <button @click="viewReport(item.id)" class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition font-bold text-xs">
+                                    Ver Reporte
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm no-print" @click="showModal = false"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            
+            <div class="px-4 py-3 bg-[#3e1717] border-b flex justify-between items-center no-print">
+                <h3 class="text-sm font-black text-white flex items-center gap-2">Vista Previa del Reporte</h3>
+                <button @click="showModal = false" class="text-white/80 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            
+            <div id="print-area" class="p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-white">
+                
+                <div class="flex justify-between items-center border-b-2 border-[#3e1717] pb-2 mb-3">
+                    <img src="{% static 'ventas/BasicosElBaratillo.png' %}" alt="Logo" class="h-12 w-auto object-contain">
+                    <div class="text-right">
+                        <h2 class="text-lg sm:text-xl font-black text-[#3e1717] uppercase tracking-tight leading-none mb-1">Reporte de Auditoría Física</h2>
+                        <p class="text-[10px] sm:text-xs font-bold text-gray-500">Folio Interno: #<span class="text-sm text-gray-900" x-text="activeReport?.id"></span></p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 py-2 px-4 rounded-lg border border-gray-200 mb-4 flex justify-between items-center">
+                    <div>
+                        <span class="block text-[9px] sm:text-[10px] font-black text-[#3e1717] uppercase tracking-wider">Fecha</span>
+                        <span class="font-bold text-gray-900 text-xs sm:text-sm" x-text="activeReport?.date"></span>
+                    </div>
+                    <div class="text-center">
+                        <span class="block text-[9px] sm:text-[10px] font-black text-[#3e1717] uppercase tracking-wider">Categoría</span>
+                        <span class="font-bold text-gray-900 text-xs sm:text-sm" x-text="activeReport?.category"></span>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-[9px] sm:text-[10px] font-black text-[#3e1717] uppercase tracking-wider">Auditor</span>
+                        <span class="font-bold text-gray-900 text-xs sm:text-sm" x-text="activeReport?.user"></span>
+                    </div>
+                </div>
+
+                <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                        <tr class="bg-[#3e1717] text-white uppercase text-[9px] sm:text-[10px] tracking-wider font-black print-header-bg">
+                            <th class="py-1.5 px-2 rounded-tl-md">Producto</th>
+                            <th class="py-1.5 px-2 text-center">Stock Sistema</th>
+                            <th class="py-1.5 px-2 text-center bg-white/10">Físico</th>
+                            <th class="py-1.5 px-2 text-right rounded-tr-md">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 border border-gray-200 border-t-0">
+                        <template x-for="item in activeReport?.items" :key="item.barcode">
+                            <tr class="hover:bg-gray-50">
+                                <td class="py-1.5 px-2 pr-1">
+                                    <p class="font-bold text-gray-900 leading-tight" x-text="item.name"></p>
+                                    <p class="text-[9px] text-gray-500 font-mono mt-0.5" x-text="item.barcode"></p>
+                                </td>
+                                <td class="py-1.5 px-2 text-center text-gray-600 font-mono" x-text="item.system_qty"></td>
+                                <td class="py-1.5 px-2 text-center font-black font-mono text-gray-900 bg-gray-50" x-text="item.counted_qty"></td>
+                                <td class="py-1.5 px-2 text-right font-black font-mono">
+                                    <span class="px-1.5 py-0.5 rounded"
+                                          :class="item.diff > 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'">
+                                        <span x-text="item.diff > 0 ? '+' : ''"></span><span x-text="item.diff"></span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="activeReport?.items.length === 0">
+                            <td colspan="4" class="text-center py-6 font-bold text-gray-500 italic bg-gray-50 text-xs">
+                                Inventario perfecto. No se reportaron diferencias.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-4 pt-3 border-t border-gray-200 text-center text-[9px] text-gray-400">
+                    <p>Documento generado por el Sistema de Punto de Venta "Básicos El Baratillo". --- Fin del Reporte ---</p>
+                </div>
+            </div>
+            
+            <div class="p-3 bg-gray-50 border-t flex justify-end gap-3 no-print">
+                <button @click="showModal = false" class="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 text-sm">Cerrar</button>
+                <button @click="window.print()" class="px-4 py-2 bg-[#3e1717] text-white font-black rounded-lg hover:bg-[#2a1010] shadow flex gap-2 text-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Imprimir Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function conteoManager() {
+        return {
+            tab: 'nuevo',
+            selectedCategory: '',
+            products: [],
+            history: [],
+            showModal: false,
+            activeReport: null,
+
+            async loadProducts() {
+                try {
+                    const res = await fetch(`/api/conteo/productos/?category_id=${this.selectedCategory}`);
+                    if(res.ok) {
+                        const data = await res.json();
+                        this.products = data.map(p => ({ ...p, counted_qty: '' }));
+                    }
+                } catch(e) { console.error(e); }
+            },
+
+            hasDiff(p) {
+                if (p.counted_qty === '') return false;
+                return parseFloat(p.counted_qty) !== parseFloat(p.system_qty);
+            },
+
+            getDiffCount() {
+                return this.products.filter(p => this.hasDiff(p)).length;
+            },
+
+            async submitCount() {
+                const diffs = this.products.filter(p => this.hasDiff(p));
+                
+                if (diffs.length === 0) {
+                    Swal.fire('Inventario Exacto', 'No anotaste ninguna diferencia. El inventario está perfecto.', 'info');
+                    return;
+                }
+
+                const result = await Swal.fire({
+                    title: '¿Procesar Ajustes?',
+                    html: `Encontraste diferencias en <b>${diffs.length}</b> productos.<br>Al confirmar, el stock del sistema se actualizará a lo que contaste.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#16a34a',
+                    confirmButtonText: 'Sí, aplicar ajustes',
+                    cancelButtonText: 'Revisar de nuevo'
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        const payload = { category_id: this.selectedCategory, items: diffs };
+                        const res = await fetch('/api/conteo/procesar/', { method: 'POST', body: JSON.stringify(payload) });
+                        const data = await res.json();
+                        
+                        if (data.status === 'success') {
+                            Swal.fire({icon: 'success', title: '¡Guardado!', text: 'El inventario ha sido actualizado.', timer: 2000, showConfirmButton: false});
+                            this.products = [];
+                            this.selectedCategory = '';
+                            this.loadHistory();
+                            this.viewReport(data.count_id);
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch(e) { Swal.fire('Error', 'Fallo de conexión', 'error'); }
+                }
+            },
+
+            async loadHistory() {
+                try {
+                    const res = await fetch('/api/conteo/historial/');
+                    if (res.ok) this.history = await res.json();
+                } catch(e) { console.error(e); }
+            },
+
+            async viewReport(count_id) {
+                try {
+                    const res = await fetch(`/api/conteo/historial/?count_id=${count_id}`);
+                    if (res.ok) {
+                        this.activeReport = await res.json();
+                        this.showModal = true;
+                    }
+                } catch(e) { console.error(e); }
+            }
+        }
+    }
+</script>
+{% endblock %}

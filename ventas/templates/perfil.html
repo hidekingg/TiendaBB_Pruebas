@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block header_title %}Mi Perfil{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 rounded-md bg-green-50 p-4 border-l-4 border-green-400">
+                <div class="flex">
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-green-800">{{ message }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="md:grid md:grid-cols-3 md:gap-6">
+        
+        <div class="md:col-span-1">
+            <div class="px-4 sm:px-0">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Información Personal</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                    Así es como te ven los demás usuarios en el sistema.
+                </p>
+                
+                <div class="mt-6 bg-white shadow rounded-lg p-6 text-center">
+                    <div class="relative inline-block">
+                        {% if usuario.photo %}
+                            <img class="h-32 w-32 rounded-full mx-auto object-cover border-4 border-gray-100" src="{{ usuario.photo.url }}" alt="Foto actual">
+                        {% else %}
+                            <div class="h-32 w-32 rounded-full mx-auto bg-[#ff4f4f] flex items-center justify-center text-white text-4xl font-bold border-4 border-gray-100">
+                                {{ usuario.full_name|slice:":1" }}
+                            </div>
+                        {% endif %}
+                        <span class="absolute bottom-2 right-2 block h-4 w-4 rounded-full ring-2 ring-white bg-green-400" title="Activo"></span>
+                    </div>
+                    
+                    <h3 class="mt-4 text-xl font-bold text-gray-900">{{ usuario.full_name }}</h3>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#3e1717] text-white mt-2">
+                        {{ usuario.role.name }}
+                    </span>
+                    <p class="text-gray-500 text-sm mt-2">Usuario: @{{ usuario.username }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 md:mt-0 md:col-span-2">
+            <form action="{% url 'perfil' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="shadow sm:rounded-md sm:overflow-hidden">
+                    <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
+                        
+                        <div>
+                            <label for="full_name" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                            <div class="mt-1 text-[#3e1717]">
+                                {{ form.full_name }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700"> Foto de Perfil </label>
+                            <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600 justify-center">
+                                        {{ form.photo }}
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF hasta 5MB</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#3e1717] hover:bg-[#2a1010] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff4f4f]">
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

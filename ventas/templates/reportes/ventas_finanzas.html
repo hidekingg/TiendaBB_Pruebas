@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block header_title %}Centro de Reportes Maestros{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="//unpkg.com/alpinejs" defer></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    
+    /* SCROLLBAR PARA EL MENÚ DE PESTAÑAS (MÓVIL) */
+    .tabs-scroll::-webkit-scrollbar { height: 4px; }
+    .tabs-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    
+    /* ESTILOS DE IMPRESIÓN */
+    @media print {
+        nav, header, aside, footer, .no-print { display: none !important; }
+        @page { size: Letter; margin: 1cm; }
+        body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .print-only { display: block !important; }
+        .print-header-bg { background-color: #3e1717 !important; color: white !important; }
+        .print-row-bg { background-color: #f9fafb !important; }
+        .print-container { padding: 0 !important; width: 100% !important; }
+        .print-header-flex { display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; }
+        .print-grid-2 { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+        .print-grid-4 { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 10px !important; }
+        .shadow-sm, .shadow, .shadow-md { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+        table { table-layout: fixed !important; width: 100% !important; }
+        th, td { word-wrap: break-word !important; overflow-wrap: break-word !important; }
+        tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+        thead { display: table-header-group !important; }
+        .overflow-x-auto { overflow: visible !important; }
+    }
+    .print-only { display: none; }
+</style>
+
+<div class="max-w-full mx-auto pb-20 px-2 sm:px-6 lg:px-8" x-data="financeReports()">
+    
+    <div class="flex border-b border-gray-200 mb-6 no-print overflow-x-auto whitespace-nowrap tabs-scroll">
+        <button @click="tab = 'finanzas'" class="py-3 px-6 font-bold text-sm border-b-2 transition shrink-0" :class="tab === 'finanzas' ? 'border-[#3e1717] text-[#3e1717]' : 'border-transparent text-gray-500 hover:text-gray-800'">Resumen Financiero</button>
+        <button @click="tab = 'gastos'" class="py-3 px-6 font-bold text-sm border-b-2 transition shrink-0" :class="tab === 'gastos' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-800'">Tomas Internas</button>
+        <button @click="tab = 'proveedores'" class="py-3 px-6 font-bold text-sm border-b-2 transition shrink-0" :class="tab === 'proveedores' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-800'">Compras / Proveedor</button>
+        <button @click="tab = 'zombies'" class="py-3 px-6 font-bold text-sm border-b-2 transition shrink-0" :class="tab === 'zombies' ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-800'">Productos Estancados</button>
+        <button @click="tab = 'horas'" class="py-3 px-6 font-bold text-sm border-b-2 transition shrink-0" :class="tab === 'horas' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-800'">Flujo (Horas Pico)</button>
+    </div>
+
+    <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between no-print">
+        <div class="flex gap-4 w-full md:w-auto">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Desde</label>
+                <input type="date" x-model="startDate" class="border-gray-300 rounded-md shadow-sm focus:ring-[#3e1717] focus:border-[#3e1717]">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hasta</label>
+                <input type="date" x-model="endDate" class="border-gray-300 rounded-md shadow-sm focus:ring-[#3e1717] focus:border-[#3e1717]">
+            </div>
+        </div>
+        
+        <div class="flex gap-2 w-full md:w-auto">
+            <button @click="loadData()" class="flex-1 md:w-auto bg-gray-800 text-white px-6 py-2.5 rounded-lg font-bold shadow hover:bg-gray-900 transition flex items-center justify-center gap-2">
+                Actualizar Datos
+            </button>
+            
+            <template x-if="tab === 'finanzas'">
+                <a :href="`/reportes/finanzas/pdf/?start=${startDate}&end=${endDate}`" target="_blank" class="bg-[#3e1717] text-white px-6 py-2.5 rounded-lg font-bold shadow hover:bg-[#2a1010] flex items-center justify-center gap-2">Imprimir Resumen</a>
+            </template>
+            <template x-if="tab !== 'finanzas' && tab !== 'horas'">
+                <button @click="window.print()" class="bg-[#3e1717] text-white px-6 py-2.5 rounded-lg font-bold shadow hover:bg-[#2a1010] flex items-center justify-center gap-2">Imprimir Reporte</button>
+            </template>
+        </div>
+    </div>
+
+    <div x-show="tab === 'finanzas'" class="no-print">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-600 relative overflow-hidden">
+                <div><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">1. Ventas Netas</p><p class="text-xl font-black text-gray-900 mt-1" x-text="formatMoney(kpi.ventas_netas)"></p></div>
+                <div class="mt-2 pt-2 border-t border-gray-100" x-show="kpi.descuento_promos > 0"><div class="flex justify-between items-center text-xs"><span class="text-gray-400 font-medium">En Ofertas:</span><span class="font-bold text-pink-600" x-text="formatMoney(kpi.descuento_promos)"></span></div></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-400">
+                <div><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">2. (-) Costo Ventas</p><p class="text-xl font-black text-gray-900 mt-1" x-text="formatMoney(kpi.costo_ventas)"></p></div><p class="text-[10px] text-red-500 mt-1 font-medium">Costo del producto</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-500 bg-indigo-50/30">
+                <div><p class="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">3. (=) Utilidad Bruta</p><p class="text-xl font-black text-indigo-700 mt-1" x-text="formatMoney(kpi.utilidad_bruta)"></p></div><p class="text-[10px] text-indigo-600 mt-1 font-medium">Ganancia Comercial</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-400">
+                <div><p class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">4. (-) Gastos Op.</p><p class="text-xl font-black text-orange-600 mt-1" x-text="formatMoney(kpi.gastos_operativos)"></p></div><p class="text-[10px] text-orange-500 mt-1 font-medium">Tomas Internas</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500 bg-green-50/30 transform transition hover:scale-105 duration-300">
+                <div class="flex justify-between items-start"><div><p class="text-[10px] font-bold text-green-800 uppercase tracking-wide">5. (=) Utilidad Neta</p><p class="text-2xl font-black text-green-700 mt-1" x-text="formatMoney(kpi.utilidad_neta)"></p></div></div>
+                <div class="mt-2 flex items-center gap-2"><span class="text-[10px] font-bold bg-green-200 text-green-800 px-2 py-0.5 rounded-full">Margen: <span x-text="kpi.margen + '%'"></span></span></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm"><h3 class="text-lg font-black text-gray-800 mb-4 border-b pb-2">Comportamiento Diario</h3><div class="relative h-64"><canvas id="chartVentas"></canvas></div></div>
+            <div class="bg-white p-5 rounded-xl shadow-sm"><h3 class="text-lg font-black text-gray-800 mb-4 border-b pb-2">Métodos de Pago</h3><div class="relative h-64 flex justify-center"><canvas id="chartPagos"></canvas></div></div>
+        </div>
+    </div>
+
+    <div x-show="tab === 'gastos'" class="print-container" x-cloak>
+        <div class="print-only mb-6 border-b-2 border-[#3e1717] pb-4 print-header-flex">
+            <div><img src="{% static 'ventas/BasicosElBaratillo.png' %}" alt="Logo" style="max-height: 50px;"></div>
+            <div style="text-align: right;"><h2 class="text-xl font-black text-[#3e1717] m-0">Tomas Internas</h2><p class="text-xs font-bold text-gray-500 m-0 mt-1">Período: <span x-text="startDate"></span> al <span x-text="endDate"></span></p></div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 print-grid-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Total Fugado</p>
+                <p class="text-2xl font-black text-orange-600" x-text="formatMoney(gastos.kpis.total_gastos)"></p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Cantidad de Tomas</p>
+                <p class="text-2xl font-black text-gray-800" x-text="gastos.kpis.total_tomas"></p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Día de más fugas</p>
+                <p class="text-xl font-black text-blue-700 mt-1" x-text="gastos.kpis.dia_frecuente"></p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Más Tomado</p>
+                <p class="text-sm font-bold text-gray-800 mt-1 leading-tight" x-text="gastos.kpis.producto_top"></p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border md:border border-gray-200">
+            <div x-show="gastos.dias.length === 0" class="p-10 text-center text-gray-400 font-bold">No hay tomas registradas.</div>
+            <template x-for="dia in gastos.dias" :key="dia.fecha">
+                <div class="border-b border-gray-200 last:border-0">
+                    <div class="bg-gray-100 p-3 px-4 flex justify-between items-center print-row-bg">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase" x-text="dia.dia_semana"></span>
+                            <span class="font-black text-gray-900 text-sm" x-text="dia.fecha"></span>
+                        </div>
+                        <span class="font-black text-orange-600 text-base" x-text="formatMoney(dia.total_dia)"></span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="bg-white text-gray-400 uppercase text-[10px] font-black border-b border-gray-200">
+                                    <th class="py-2 px-3 w-[15%]">Hora</th><th class="py-2 px-3 w-[45%]">Motivo y Producto</th>
+                                    <th class="py-2 px-3 text-center w-[10%]">Cant.</th><th class="py-2 px-3 text-right w-[20%]">Costo Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <template x-for="toma in dia.tomas">
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="py-2 px-3 text-xs font-mono text-gray-500" x-text="toma.hora"></td>
+                                        <td class="py-2 px-3"><p class="font-bold text-gray-900" x-text="toma.producto"></p><p class="text-[9px] text-gray-400 mt-0.5" x-text="toma.motivo + ' - ' + toma.beneficiario"></p></td>
+                                        <td class="py-2 px-3 text-center font-black text-gray-700" x-text="toma.cantidad"></td>
+                                        <td class="py-2 px-3 text-right font-black text-gray-900"><span x-text="formatMoney(toma.total)"></span><p class="text-[8px] text-gray-400 mt-0.5">C.U: <span x-text="formatMoney(toma.costo_unitario)"></span></p></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div x-show="tab === 'proveedores'" class="print-container" x-cloak>
+        <div class="print-only mb-6 border-b-2 border-[#3e1717] pb-4 print-header-flex">
+            <div><img src="{% static 'ventas/BasicosElBaratillo.png' %}" alt="Logo" style="max-height: 50px;"></div>
+            <div style="text-align: right;"><h2 class="text-xl font-black text-[#3e1717] m-0">Análisis de Compras</h2><p class="text-xs font-bold text-gray-500 m-0 mt-1">Período: <span x-text="startDate"></span> al <span x-text="endDate"></span></p></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 print-grid-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Inversión Total del Periodo</p>
+                <p class="text-3xl font-black text-blue-700 mt-1" x-text="formatMoney(proveedores.kpis.total_compras)"></p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Proveedor con más gasto</p>
+                <p class="text-xl font-black text-gray-800 mt-2" x-text="proveedores.kpis.top_proveedor"></p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-[#3e1717] text-white uppercase text-[10px] tracking-wider font-black print-header-bg">
+                            <th class="py-3 px-4">Nombre del Proveedor</th>
+                            <th class="py-3 px-4 text-center">Unidades Compradas</th>
+                            <th class="py-3 px-4 text-right">Monto Gastado Estimado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr x-show="proveedores.lista.length === 0"><td colspan="3" class="text-center py-6 text-gray-400 font-bold">Sin compras registradas.</td></tr>
+                        <template x-for="prov in proveedores.lista" :key="prov.nombre">
+                            <tr class="hover:bg-gray-50">
+                                <td class="py-3 px-4 font-bold text-gray-900" x-text="prov.nombre"></td>
+                                <td class="py-3 px-4 text-center font-mono text-gray-600" x-text="prov.cantidad + ' pzs'"></td>
+                                <td class="py-3 px-4 text-right font-black text-blue-700 text-base" x-text="formatMoney(prov.monto)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="tab === 'zombies'" class="print-container" x-cloak>
+        <div class="print-only mb-6 border-b-2 border-[#3e1717] pb-4 print-header-flex">
+            <div><img src="{% static 'ventas/BasicosElBaratillo.png' %}" alt="Logo" style="max-height: 50px;"></div>
+            <div style="text-align: right;"><h2 class="text-xl font-black text-[#3e1717] m-0">Productos Estancados (Zombies)</h2><p class="text-xs font-bold text-gray-500 m-0 mt-1">Sin ventas del <span x-text="startDate"></span> al <span x-text="endDate"></span></p></div>
+        </div>
+
+        <div class="bg-red-50 border border-red-200 p-4 rounded-xl mb-6 flex items-center justify-between">
+            <div>
+                <h3 class="text-red-800 font-black text-lg">Alerta de Dinero Congelado</h3>
+                <p class="text-sm text-red-700">Tienes <b x-text="zombies.kpis.total_productos"></b> productos diferentes en tu tienda que NO han vendido ni una sola pieza en el periodo seleccionado.</p>
+            </div>
+            <div class="text-right pl-4 border-l border-red-200">
+                <span class="block text-[10px] text-red-500 uppercase font-bold">Inversión Atrapada</span>
+                <span class="text-3xl font-black text-red-700" x-text="formatMoney(zombies.kpis.total_congelado)"></span>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-500 uppercase text-[10px] tracking-wider font-black print-row-bg border-b border-gray-200">
+                            <th class="py-3 px-4 w-[50%]">Producto Inactivo</th>
+                            <th class="py-3 px-4 text-center">Stock Base</th>
+                            <th class="py-3 px-4 text-right">Inversión Atrapada</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr x-show="zombies.lista.length === 0"><td colspan="3" class="text-center py-6 text-green-600 font-bold">¡Excelente! Todos tus productos tienen movimiento.</td></tr>
+                        <template x-for="p in zombies.lista">
+                            <tr class="hover:bg-red-50/50 transition-colors">
+                                <td class="py-2 px-4">
+                                    <p class="font-bold text-gray-900 leading-tight" x-text="p.name"></p>
+                                    <p class="text-[10px] text-gray-400 font-mono mt-0.5" x-text="'CB: ' + p.barcode"></p>
+                                </td>
+                                <td class="py-2 px-4 text-center">
+                                    <span class="font-black text-gray-600" x-text="p.stock"></span>
+                                    <p class="text-[9px] text-gray-400">Costo: <span x-text="formatMoney(p.cost)"></span></p>
+                                </td>
+                                <td class="py-2 px-4 text-right font-black text-red-600 text-base" x-text="formatMoney(p.inversion)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="tab === 'horas'" class="no-print" x-cloak>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center border-b-4 border-yellow-500">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Hora con Más Tráfico (Gente)</p>
+                <p class="text-3xl font-black text-gray-800 mt-1" x-text="horas.kpis.hora_pico_tickets"></p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm text-center border-b-4 border-green-500">
+                <p class="text-[10px] font-black text-gray-400 uppercase">Hora con Más Ingresos (Dinero)</p>
+                <p class="text-3xl font-black text-green-700 mt-1" x-text="horas.kpis.hora_pico_ingresos"></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow-sm">
+            <h3 class="text-lg font-black text-gray-800 mb-4 border-b pb-2">Comportamiento del Reloj (24 Horas)</h3>
+            <div class="relative h-[400px]">
+                <canvas id="chartHoras"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function financeReports() {
+        return {
+            tab: 'finanzas',
+            startDate: '{{ fecha_inicio }}',
+            endDate: '{{ fecha_fin }}',
+            
+            kpi: { ventas_netas: 0, costo_ventas: 0, utilidad_bruta: 0, gastos_operativos: 0, utilidad_neta: 0, margen: 0, descuento_promos: 0 },
+            gastos: { kpis: { total_gastos: 0, total_tomas: 0, producto_top: '-', dia_frecuente: '-' }, dias: [] },
+            proveedores: { kpis: { total_compras: 0, top_proveedor: '-' }, lista: [] },
+            zombies: { kpis: { total_congelado: 0, total_productos: 0 }, lista: [] },
+            horas: { kpis: { hora_pico_tickets: '-', hora_pico_ingresos: '-' } },
+            
+            chartA: null, chartC: null, chartHoras: null,
+
+            init() { this.loadData(); },
+
+            async loadData() {
+                const query = `?start=${this.startDate}&end=${this.endDate}`;
+                
+                // 1. Finanzas y Gráficas Básicas
+                try {
+                    const res = await fetch('/api/reportes/data/' + query);
+                    const data = await res.json();
+                    this.kpi = data.reporte_b;
+                    this.renderChartA(data.reporte_a);
+                    this.renderChartC(data.reporte_c);
+                } catch(e) {}
+
+                // 2. Gastos (Tomas Internas)
+                try {
+                    const res = await fetch('/api/reportes/gastos/' + query);
+                    const data = await res.json();
+                    this.gastos.kpis = data.kpis;
+                    this.gastos.dias = data.dias;
+                } catch(e) {}
+
+                // 3. Proveedores
+                try {
+                    const res = await fetch('/api/reportes/proveedores/' + query);
+                    const data = await res.json();
+                    this.proveedores.kpis = data.kpis;
+                    this.proveedores.lista = data.proveedores;
+                } catch(e) {}
+
+                // 4. Zombies
+                try {
+                    const res = await fetch('/api/reportes/zombies/' + query);
+                    const data = await res.json();
+                    this.zombies.kpis = data.kpis;
+                    this.zombies.lista = data.zombies;
+                } catch(e) {}
+
+                // 5. Horas Pico
+                try {
+                    const res = await fetch('/api/reportes/horas/' + query);
+                    const data = await res.json();
+                    this.horas.kpis = data.kpis;
+                    this.renderChartHoras(data);
+                } catch(e) {}
+            },
+
+            renderChartA(data) {
+                const ctx = document.getElementById('chartVentas').getContext('2d');
+                if (this.chartA) this.chartA.destroy();
+                this.chartA = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: data.labels, datasets: [{ label: 'Ventas Netas ($)', data: data.data, borderColor: '#3e1717', backgroundColor: 'rgba(62, 23, 23, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            },
+
+            renderChartC(data) {
+                const ctx = document.getElementById('chartPagos').getContext('2d');
+                if (this.chartC) this.chartC.destroy();
+                const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#6366f1'];
+                this.chartC = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: data.labels, datasets: [{ data: data.data, backgroundColor: colors, borderWidth: 0 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            },
+
+            renderChartHoras(data) {
+                const ctx = document.getElementById('chartHoras').getContext('2d');
+                if (this.chartHoras) this.chartHoras.destroy();
+                this.chartHoras = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            { label: 'Número de Tickets (Personas)', data: data.tickets, backgroundColor: '#f59e0b', yAxisID: 'y' },
+                            { label: 'Ingresos ($)', data: data.ingresos, type: 'line', borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: { type: 'linear', position: 'left', title: { display: true, text: 'Cant. Tickets' }, beginAtZero: true },
+                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Ingresos ($)' }, grid: { drawOnChartArea: false }, beginAtZero: true }
+                        }
+                    }
+                });
+            },
+
+            formatMoney(value) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value || 0); }
+        }
+    }
+</script>
+{% endblock %}

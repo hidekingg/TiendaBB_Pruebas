@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block header_title %}Movimientos de Inventario{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="stockMovementManager()">
+    
+    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 border border-gray-200 items-end">
+        
+        <div class="w-full md:w-1/4">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Buscar Producto</label>
+            <input type="text" x-model="filters.q" @keydown.enter="loadMovements(1)" class="w-full py-2.5 px-3 border-2 border-gray-200 rounded-lg font-bold text-gray-700 focus:border-[#3e1717] outline-none" placeholder="Nombre o código...">
+        </div>
+
+        <div class="w-full md:w-1/4">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Tipo de Movimiento</label>
+            <select x-model="filters.type" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none bg-white">
+                <option value="">-- Todos --</option>
+                <option value="IN_PURCHASE">Entrada por Compra</option>
+                <option value="OUT_SALE">Salida por Venta</option>
+                <option value="OUT_DAMAGE">Merma / Daño</option>
+                <option value="OUT_INTERNAL_USE">Uso Interno</option>
+                <option value="RETURN">Devolución / Retorno</option>
+                <option value="ADJ_ADD">Ajuste (Suma)</option>
+                <option value="ADJ_SUB">Ajuste (Resta)</option>
+            </select>
+        </div>
+
+        <div class="w-full md:w-1/6">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Desde</label>
+            <input type="date" x-model="filters.start" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/6">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Hasta</label>
+            <input type="date" x-model="filters.end" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/6 flex gap-2">
+            <button @click="loadMovements(1)" class="flex-1 bg-[#3e1717] text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-[#2a1010] transition active:scale-95 flex items-center justify-center">
+                Filtrar
+            </button>
+            <button @click="resetFilters()" class="px-3 bg-gray-200 text-gray-700 font-bold py-2.5 rounded-lg shadow-sm hover:bg-gray-300 transition" title="Limpiar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider font-black">
+                        <th class="p-4">Fecha y Hora</th>
+                        <th class="p-4">Producto</th>
+                        <th class="p-4">Movimiento</th>
+                        <th class="p-4 text-center">Cantidad</th>
+                        <th class="p-4">Detalles y Referencia</th>
+                        <th class="p-4">Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr x-show="isLoading"><td colspan="6" class="p-8 text-center text-gray-400 font-bold">Buscando registros...</td></tr>
+                    <tr x-show="!isLoading && movements.length === 0"><td colspan="6" class="p-8 text-center text-gray-400 font-bold">No se encontraron movimientos.</td></tr>
+                    
+                    <template x-for="item in movements" :key="item.id">
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="p-4 text-sm font-bold text-gray-700 whitespace-nowrap" x-text="item.date"></td>
+                            
+                            <td class="p-4">
+                                <p class="text-sm font-black text-gray-900 leading-tight" x-text="item.product_name"></p>
+                                <p class="text-[10px] font-mono text-gray-400 mt-0.5" x-text="`CÓDIGO: ${item.barcode}`"></p>
+                            </td>
+                            
+                            <td class="p-4">
+                                <span class="px-2.5 py-1 rounded text-[10px] font-black tracking-widest border"
+                                      :class="getTypeClass(item.type).badge" x-text="getTypeTranslation(item.type)"></span>
+                            </td>
+
+                            <td class="p-4 text-center">
+                                <div class="text-lg font-black flex items-center justify-center gap-1" :class="getTypeClass(item.type).text">
+                                    <span x-text="getTypeSign(item.type)"></span>
+                                    <span x-text="item.quantity"></span>
+                                </div>
+                            </td>
+
+                            <td class="p-4">
+                                <p class="text-xs text-gray-600 font-medium line-clamp-2" x-text="item.reason"></p>
+                                <p class="text-[10px] font-bold text-gray-400 mt-0.5" x-show="item.reference !== '-'" x-text="`Ref: ${item.reference}`"></p>
+                            </td>
+                            
+                            <td class="p-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-black text-[10px]" x-text="item.user.charAt(0)"></div>
+                                    <span class="text-xs font-bold text-gray-700" x-text="item.user"></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-xs font-bold text-gray-500">
+                Registros encontrados: <span class="text-gray-900 text-sm" x-text="pagination.total_records"></span>
+            </div>
+            
+            <div class="flex gap-2" x-show="pagination.num_pages > 1">
+                <button @click="loadMovements(pagination.current_page - 1)" :disabled="!pagination.has_previous" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition">
+                    Anterior
+                </button>
+                
+                <span class="px-4 py-2 text-sm font-black text-[#3e1717] bg-red-50 border border-red-100 rounded-lg flex items-center">
+                    <span x-text="pagination.current_page"></span>&nbsp;/&nbsp;<span x-text="pagination.num_pages"></span>
+                </span>
+                
+                <button @click="loadMovements(pagination.current_page + 1)" :disabled="!pagination.has_next" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition">
+                    Siguiente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function stockMovementManager() {
+        return {
+            movements: [],
+            isLoading: false,
+            filters: { q: '', type: '', start: '', end: '' },
+            pagination: { current_page: 1, num_pages: 1, has_next: false, has_previous: false, total_records: 0 },
+
+            init() {
+                // Últimos 7 días por defecto
+                const today = new Date();
+                const lastWeek = new Date();
+                lastWeek.setDate(today.getDate() - 7);
+                
+                this.filters.end = today.toISOString().split('T')[0];
+                this.filters.start = lastWeek.toISOString().split('T')[0];
+                
+                this.loadMovements(1);
+            },
+
+            async loadMovements(page = 1) {
+                this.isLoading = true;
+                const params = new URLSearchParams({
+                    q: this.filters.q,
+                    type: this.filters.type,
+                    start: this.filters.start,
+                    end: this.filters.end,
+                    page: page
+                });
+                
+                try {
+                    const res = await fetch(`/api/admin/movimientos-stock/lista/?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.movements = data.movements;
+                        this.pagination = data.pagination;
+                    }
+                } catch (e) { console.error(e); }
+                this.isLoading = false;
+            },
+
+            resetFilters() {
+                this.filters.q = '';
+                this.filters.type = '';
+                this.init(); 
+            },
+
+            getTypeTranslation(type) {
+                const map = {
+                    'IN_PURCHASE': 'COMPRA',
+                    'OUT_SALE': 'VENTA',
+                    'OUT_DAMAGE': 'MERMA',
+                    'OUT_INTERNAL_USE': 'USO INTERNO',
+                    'RETURN': 'DEVOLUCIÓN',
+                    'ADJ_ADD': 'AJUSTE (+)',
+                    'ADJ_SUB': 'AJUSTE (-)',
+                    'ADJUSTMENT': 'AJUSTE'
+                };
+                return map[type] || type;
+            },
+
+            getTypeSign(type) {
+                const positive = ['IN_PURCHASE', 'RETURN', 'ADJ_ADD'];
+                const negative = ['OUT_SALE', 'OUT_DAMAGE', 'OUT_INTERNAL_USE', 'ADJ_SUB'];
+                if (positive.includes(type)) return '+';
+                if (negative.includes(type)) return '';
+                return '';
+            },
+
+            getTypeClass(type) {
+                const map = {
+                    'IN_PURCHASE': { badge: 'bg-green-50 text-green-700 border-green-200', text: 'text-green-600' },
+                    'RETURN': { badge: 'bg-green-50 text-green-700 border-green-200', text: 'text-green-600' },
+                    'ADJ_ADD': { badge: 'bg-green-50 text-green-700 border-green-200', text: 'text-green-600' },
+                    
+                    'OUT_SALE': { badge: 'bg-blue-50 text-blue-700 border-blue-200', text: 'text-blue-600' },
+                    
+                    'OUT_DAMAGE': { badge: 'bg-red-50 text-red-700 border-red-200', text: 'text-red-600' },
+                    'ADJ_SUB': { badge: 'bg-red-50 text-red-700 border-red-200', text: 'text-red-600' },
+                    
+                    'OUT_INTERNAL_USE': { badge: 'bg-orange-50 text-orange-700 border-orange-200', text: 'text-orange-600' },
+                };
+                return map[type] || { badge: 'bg-gray-50 text-gray-700 border-gray-200', text: 'text-gray-600' };
+            }
+        }
+    }
+</script>
+{% endblock %}

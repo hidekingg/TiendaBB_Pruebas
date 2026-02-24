@@ -1,0 +1,224 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket #{{ sale.sale_id }}</title>
+    <style>
+        @page { margin: 0; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 78mm; 
+            margin: 0 auto;
+            padding: 2mm 3mm; 
+            font-size: 11px; 
+            color: #000;
+            background: #fff;
+            line-height: 1.15; 
+        }
+        .logo-container { text-align: center; margin-top: 2px; margin-bottom: 4px; }
+        .logo-container img { width: 70%; max-width: 200px; height: auto; filter: grayscale(100%) contrast(1.5) brightness(1.2); }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .bold { font-weight: 900; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .ascii-divider { text-align: center; font-size: 11px; margin: 3px 0; letter-spacing: 1px; white-space: nowrap; overflow: hidden; }
+        
+        table { width: 100%; border-collapse: collapse; margin: 5px 0; }
+        th { border-bottom: 1px dashed #000; border-top: 1px dashed #000; padding: 3px 0; font-size: 10px; }
+        td { vertical-align: top; padding: 3px 0; font-size: 11px; }
+        .w-qty { width: 15%; font-weight: bold; text-align: center; }
+        .w-name { width: 55%; padding-right: 5px; }
+        .w-price { width: 30%; text-align: right; }
+        .item-desc { font-size: 9px; color: #333; display: block; line-height: 1.1; }
+
+        .totals-zone { border-top: 1px solid #000; margin-top: 2px; padding-top: 4px; }
+        .total-row {
+            font-size: 16px; font-weight: 900; margin: 4px 0;
+            border-top: 2px dashed #000; border-bottom: 2px dashed #000;
+            padding: 4px 0; text-transform: uppercase;
+        }
+        .payment-info { font-size: 10px; margin: 2px 0; } 
+        .footer { text-align: center; margin-top: 10px; margin-bottom: 10px; }
+        .footer-message { font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; }
+        
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+    <div class="logo-container">
+        <img src="{% static 'ventas/BasicosElBaratilloTICKET.png' %}" alt="Básicos El Baratillo">
+    </div>
+
+    <div class="text-center">
+        <p style="margin:1px 0; font-size:10px;">Av. Sinaloa, Manzana 203, Lote 15, Las Granjas, 29019 Tuxtla Gutiérrez, Chis.</p>
+        <p style="margin:1px 0; font-size:10px;">Tel: 961-384-2455</p>
+        <div class="ascii-divider">~ * ~ * ~ * ~ * ~ * ~</div>
+    </div>
+
+    <div style="margin: 5px 0; font-size: 10px;">
+        <p class="flex-between" style="margin: 1px 0;">
+            <span>Ticket:</span> 
+            <span class="bold">#{{ sale.sale_id }} <span id="label-copy" style="display: none;">(COPIA)</span></span>
+        </p>
+        <p class="flex-between" style="margin: 1px 0;">
+            <span>Fecha:</span> <span>{{ fecha }}</span>
+        </p>
+        <p class="flex-between" style="margin: 1px 0;">
+            <span>Le atendió:</span> <span>{{ sale.user.full_name }}</span>
+        </p>
+    </div>
+
+    {% if sale.status == 'CANCELLED' %}
+    <div style="border-top: 2px dashed #000; border-bottom: 2px dashed #000; text-align: center; padding: 5px 0; margin: 8px 0;">
+        <strong style="font-size: 14px; text-transform: uppercase;">*** VENTA CANCELADA ***</strong>
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th class="w-qty">CANT</th>
+                <th class="w-name">PRODUCTO</th>
+                <th class="w-price">TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <script> window.totalItems = 0; </script>
+            {% for d in detalles %}
+            <tr>
+                <td class="w-qty">{{ d.quantity|floatformat:0 }}</td>
+                <td class="w-name">
+                    <span class="bold">{{ d.product.name }}</span>
+                    {% if d.description %}
+                        <span class="item-desc">{{ d.description }}</span>
+                    {% endif %}
+                    
+                    {% if d.deposit_charged > 0 %}
+                        <span class="item-desc bold" style="margin-top: 2px;">+ Importe Envase</span>
+                    {% endif %}
+                </td>
+                <td class="w-price">
+                    ${{ d.subtotal|floatformat:2 }}
+                    {% if d.deposit_charged > 0 %}
+                        <br><span style="font-size: 9px;">+${{ d.deposit_charged|floatformat:2 }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <script> window.totalItems += parseFloat("{{ d.quantity }}".replace(',', '.')); </script>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="text-right" style="font-size: 10px; margin-bottom: 6px; padding-right: 2px;">
+        Cant. Artículos: <span id="display-total-items" class="bold">0</span>
+    </div>
+
+    <div class="totals-zone">
+        <div style="font-size: 11px; margin-bottom: 5px;">
+            <div class="flex-between" style="margin-bottom: 2px;">
+                <span>Subtotal (Productos):</span>
+                <span>${{ sale.subtotal|floatformat:2 }}</span>
+            </div>
+            
+            {% if sale.card_commission > 0 %}
+            <div class="flex-between">
+                <span>Comisión Bancaria (4.06%):</span>
+                <span>+${{ sale.card_commission|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="flex-between total-row">
+            <span>TOTAL:</span>
+            <span id="display-grand-total">${{ sale.total|floatformat:2 }}</span>
+        </div>
+
+        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ccc;">
+            <p class="flex-between payment-info" style="margin-bottom: 6px;">
+                <span>Método de Pago:</span> 
+                <span class="bold">
+                    {% if sale.payment_method == 'CASH' %} EFECTIVO 
+                    {% elif sale.payment_method == 'CARD' %} TARJETA 
+                    {% else %} MIXTO {% endif %}
+                </span>
+            </p>
+
+            {% if sale.amount_card > 0 %}
+                <p class="flex-between payment-info">
+                    <span>Cobrado en Tarjeta:</span> 
+                    <span>${{ sale.amount_card|floatformat:2 }}</span>
+                </p>
+            {% endif %}
+
+            {% if sale.amount_card > 0 and sale.amount_cash > 0 %}
+                <div style="border-top: 1px dotted #ddd; margin: 4px 0;"></div>
+            {% endif %}
+
+            {% if sale.amount_cash > 0 %}
+                <p class="flex-between payment-info">
+                    {% if sale.payment_method == 'MIXED' %}
+                        <span>Restante en Efectivo:</span> 
+                    {% else %}
+                        <span>Total en Efectivo:</span> 
+                    {% endif %}
+                    <span>${{ sale.amount_cash|floatformat:2 }}</span>
+                </p>
+            {% endif %}
+
+            {% if sale.cash_received > 0 %}
+                <p class="flex-between payment-info">
+                    <span>Efectivo Recibido:</span> 
+                    <span>${{ sale.cash_received|floatformat:2 }}</span>
+                </p>
+            {% endif %}
+            
+            {% if sale.change_given > 0 %}
+                <p class="flex-between payment-info bold" style="font-size: 13px; margin-top: 4px;">
+                    <span>Su Cambio:</span> 
+                    <span>${{ sale.change_given|floatformat:2 }}</span>
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="ascii-divider" style="margin-top: 4px;">~ * ~ * ~ * ~ * ~ * ~</div>
+        <p class="footer-message">¡Gracias por su preferencia!</p>
+        <p style="margin: 0; font-size: 10px;">Vuelve pronto a Básicos el Baratillo.</p>    
+        <div class="ascii-divider" style="margin-top: 4px;">~ * ~ * ~ * ~ * ~ * ~</div>
+        <p style="font-size: 9px; color: #000; margin-top: 5px; line-height: 1.3;">
+            Aclaraciones únicamente el mismo día<br>presentando este ticket.<br>
+            <strong>No hay devolución de efectivo<br>en pagos con tarjeta.</strong>
+        </p>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById('display-total-items').innerText = window.totalItems || 0;
+
+            let subtotal = parseFloat("{{ sale.subtotal }}".replace(',', '.')) || 0;
+            let comision = parseFloat("{{ sale.card_commission }}".replace(',', '.')) || 0;
+            let totalReal = subtotal + comision;
+            
+            document.getElementById('display-grand-total').innerText = "$" + totalReal.toFixed(2);
+
+            // --- LEER SI ES COPIA ---
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('is_copy') === 'true') {
+                document.getElementById('label-copy').style.display = 'inline';
+            }
+
+            // --- RETRASO DE 100ms PARA QUE EL NAVEGADOR DIBUJE LA PALABRA ANTES DE IMPRIMIR ---
+            setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                    window.close();
+                }, 500);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

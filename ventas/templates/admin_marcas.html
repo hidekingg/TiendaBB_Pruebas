@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block header_title %}Catálogo de Marcas{% endblock %}
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style> 
+    [x-cloak] { display: none !important; } 
+    .input-box { width: 100%; border: 2px solid #e5e7eb; border-radius: 0.5rem; padding: 0.75rem; font-weight: 700; color: #1f2937; } 
+    .input-box:focus { border-color: #3e1717; outline: none; } 
+</style>
+
+<div class="max-w-5xl mx-auto pb-20 px-4" x-data="brandManager()">
+    
+    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4 border border-gray-200">
+        
+        <form method="GET" action="" class="relative w-full md:w-1/2">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <input type="text" name="q" value="{{ q }}" 
+                   class="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-300 text-gray-900 text-lg rounded-lg focus:ring-[#3e1717] focus:border-[#3e1717] transition-colors" 
+                   placeholder="Buscar marca y presionar ENTER...">
+        </form>
+
+        <button @click="openModal('create')" class="w-full md:w-auto bg-[#3e1717] hover:bg-[#2a1010] text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex justify-center items-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> NUEVA MARCA
+        </button>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {% for b in page_obj %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden transition hover:shadow-md relative" :class="{'opacity-50 bg-gray-50': '{{ b.is_active }}' == 'False'}">
+            
+            {% if not b.is_active %}
+                <div class="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg shadow-sm">BAJA</div>
+            {% endif %}
+
+            <div class="p-5 flex-1 flex items-center justify-center text-center">
+                <h3 class="text-xl font-black text-gray-800">{{ b.name }}</h3>
+            </div>
+            
+            <div class="p-3 bg-gray-50 border-t border-gray-100 flex gap-2">
+                <button @click="openModal('update', {{ b.brand_id }}, '{{ b.name|escapejs }}')" 
+                        class="flex-1 bg-white border border-gray-200 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-100 transition shadow-sm text-sm">
+                    Editar
+                </button>
+                
+                {% if b.is_active %}
+                <button @click="toggleStatus({{ b.brand_id }}, 'deactivate')" class="px-3 bg-red-50 border border-red-100 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition shadow-sm" title="Baja">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+                {% else %}
+                <button @click="toggleStatus({{ b.brand_id }}, 'activate')" class="px-3 bg-green-50 border border-green-100 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition shadow-sm" title="Reactivar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full p-10 text-center text-gray-500">
+            <svg class="h-12 w-12 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p class="font-bold text-lg">No se encontraron marcas.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="mt-6 flex flex-col md:flex-row items-center justify-between bg-white px-6 py-4 rounded-xl shadow-sm border border-gray-100 gap-4">
+        <div class="text-sm text-gray-600 font-bold text-center md:text-left w-full md:w-auto">
+            Mostrando <span class="text-gray-900">{{ page_obj.start_index }}</span> a <span class="text-gray-900">{{ page_obj.end_index }}</span> de <span class="text-gray-900">{{ page_obj.paginator.count }}</span>
+        </div>
+        
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}" 
+               class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm">
+                Anterior
+            </a>
+            {% else %}
+            <span class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-400 bg-gray-50 cursor-not-allowed">Anterior</span>
+            {% endif %}
+
+            <span class="px-4 py-2 text-sm font-black text-[#3e1717] bg-red-50 border border-red-100 rounded-lg">
+                {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&q={{ q }}" 
+               class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm">
+                Siguiente
+            </a>
+            {% else %}
+            <span class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-400 bg-gray-50 cursor-not-allowed">Siguiente</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform transition-all" @click.away="showModal = false"
+             x-show="showModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0">
+            
+            <div class="bg-[#3e1717] px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-white text-lg tracking-wide flex items-center gap-2" x-text="mode === 'create' ? '🏷️ Nueva Marca' : '✏️ Editar Marca'"></h3>
+                <button @click="showModal = false" class="text-white/80 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            
+            <div class="p-6">
+                <label class="block text-xs font-black text-gray-700 uppercase mb-2 tracking-wide">Nombre de la Marca</label>
+                <input type="text" x-model="formData.name" class="input-box mb-6" placeholder="Ej: Bimbo, Coca-Cola">
+                
+                <div class="flex gap-3">
+                    <button @click="showModal = false" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cancelar</button>
+                    <button @click="submitForm()" class="flex-1 py-3 bg-[#3e1717] text-white font-bold rounded-xl active:scale-95 transform transition shadow-md">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function brandManager() {
+        return {
+            showModal: false, 
+            mode: 'create', 
+            formData: { id: null, name: '' },
+            
+            openModal(mode, id=null, name='') { 
+                this.mode = mode; 
+                this.formData = { id: id, name: name }; 
+                this.showModal = true; 
+            },
+            
+            async submitForm() {
+                if(!this.formData.name) {
+                    Swal.fire('Atención', 'El nombre es obligatorio', 'warning');
+                    return;
+                }
+                const form = new FormData(); 
+                form.append('accion', this.mode); 
+                form.append('name', this.formData.name);
+                if(this.mode === 'update') form.append('brand_id', this.formData.id);
+                
+                try {
+                    const res = await fetch('/api/admin/marcas/accion/', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        Swal.fire({ icon: 'success', title: '¡Listo!', timer: 1000, showConfirmButton: false }).then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (e) { console.error(e); }
+            },
+            
+            async toggleStatus(id, action) {
+                const form = new FormData(); form.append('accion', action); form.append('brand_id', id);
+                try {
+                    if ((await fetch('/api/admin/marcas/accion/', { method: 'POST', body: form })).ok) location.reload();
+                } catch (e) {}
+            }
+        }
+    }
+</script>
+{% endblock %}

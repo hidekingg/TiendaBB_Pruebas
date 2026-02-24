@@ -1,0 +1,144 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Financiero</title>
+    <style>
+        @page { size: Letter; margin: 1.5cm; }
+        
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; }
+        
+        /* Encabezado */
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3e1717; padding-bottom: 10px; margin-bottom: 20px; }
+        .logo { width: 80px; } /* Logo pequeño */
+        .info { text-align: right; }
+        .info h1 { margin: 0; color: #3e1717; text-transform: uppercase; font-size: 18px; }
+        .info p { margin: 2px 0; font-size: 10px; color: #666; }
+
+        /* KPIs / Resumen */
+        .summary-box { 
+            background-color: #f8f8f8; 
+            border: 1px solid #ddd; 
+            padding: 10px; 
+            margin-bottom: 20px; 
+            border-radius: 5px;
+        }
+        .kpi-table { width: 100%; border-collapse: collapse; }
+        .kpi-table td { padding: 5px; vertical-align: top; width: 20%; text-align: center; }
+        .kpi-label { font-size: 10px; color: #666; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .kpi-value { font-size: 14px; font-weight: bold; color: #000; }
+        
+        /* Clases de utilidad */
+        .text-red { color: #c0392b; }
+        .text-green { color: #27ae60; }
+        .text-blue { color: #2980b9; }
+        .text-orange { color: #d35400; }
+        .text-pink { color: #e91e63; font-size: 10px; font-weight: bold; }
+
+        /* Tabla de Detalle */
+        .section-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #3e1717; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th { background-color: #3e1717; color: white; padding: 6px; text-align: right; font-size: 10px; text-transform: uppercase; }
+        .data-table th:first-child { text-align: left; }
+        .data-table td { border-bottom: 1px solid #eee; padding: 6px; text-align: right; font-size: 11px; }
+        .data-table td:first-child { text-align: left; font-weight: bold; color: #333; }
+        .data-table tr:nth-child(even) { background-color: #f9f9f9; }
+
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <img src="{% static 'ventas/BBLogo.png' %}" class="logo" alt="Logo">
+        </div>
+        <div class="info">
+            <h1>Reporte Financiero</h1>
+            <p>Período: <strong>{{ rango }}</strong></p>
+            <p>Generado por: {{ usuario }}</p>
+            <p>Fecha Impresión: {{ fecha_impresion }}</p>
+        </div>
+    </div>
+
+    <div class="summary-box">
+        <table class="kpi-table">
+            <tr>
+                <td>
+                    <span class="kpi-label">1. Ventas Netas</span>
+                    <span class="kpi-value text-blue">${{ ventas_netas|floatformat:2 }}</span>
+                    {% if descuento_promos > 0 %}
+                    <br>
+                    <span class="text-pink">Ahorro Ofertas: ${{ descuento_promos|floatformat:2 }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="kpi-label">(-) Costo Ventas</span>
+                    <span class="kpi-value text-red">${{ costo_ventas|floatformat:2 }}</span>
+                </td>
+                <td>
+                    <span class="kpi-label">(=) Utilidad Bruta</span>
+                    <span class="kpi-value">${{ utilidad_bruta|floatformat:2 }}</span>
+                </td>
+                <td>
+                    <span class="kpi-label">(-) Gastos Op.</span>
+                    <span class="kpi-value text-orange">${{ gastos_op|floatformat:2 }}</span>
+                </td>
+                <td style="border-left: 1px solid #ddd; background-color: #fff;">
+                    <span class="kpi-label">(=) Utilidad Neta</span>
+                    <span class="kpi-value text-green">${{ utilidad_neta|floatformat:2 }}</span>
+                    <br>
+                    <span style="font-size: 9px; color: #27ae60;">Margen: {{ margen|floatformat:1 }}%</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section-title">Desglose de Operaciones por Día</div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th style="text-align: center;">Tickets</th>
+                <th>Venta Neta</th>
+                <th>Costo Vta</th>
+                <th>Utilidad Bruta</th>
+                <th>Gastos Op.</th>
+                <th>Utilidad Neta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dia in tabla_diaria %}
+            <tr>
+                <td>{{ dia.fecha }}</td>
+                <td style="text-align: center;">{{ dia.tickets }}</td>
+                <td>${{ dia.venta|floatformat:2 }}</td>
+                <td>${{ dia.costo|floatformat:2 }}</td>
+                
+                <td>${{ dia.utilidad_bruta|floatformat:2 }}</td>
+                
+                <td class="text-orange">${{ dia.gastos|floatformat:2 }}</td>
+                
+                <td style="font-weight: bold;" class="{% if dia.utilidad_neta >= 0 %}text-green{% else %}text-red{% endif %}">
+                    ${{ dia.utilidad_neta|floatformat:2 }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 20px; color: #999;">
+                    No hay movimientos registrados en este período.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Documento interno de control administrativo - Básicos El Baratillo
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block header_title %}Punto de Venta{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/auto-animate/0.8.2/auto-animate.min.js"></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+<div class="relative flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-10rem)]" x-data="posSystem()">
+
+    <div class="flex-1 flex flex-col lg:flex-row gap-4 h-full overflow-hidden">
+        
+        <div class="w-full lg:w-2/3 flex flex-col h-full bg-gray-50 lg:bg-transparent" 
+             :class="mobileTab === 'ticket' ? 'hidden lg:flex' : 'flex'">
+            
+            <div class="bg-white p-3 shadow-sm z-50 shrink-0 lg:rounded-lg relative">
+                <div class="flex gap-2">
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <input type="text" id="search-input"
+                               class="block w-full pl-10 pr-10 py-3 border-gray-300 rounded-lg text-base shadow-sm focus:ring-[#3e1717] focus:border-[#3e1717]" 
+                               placeholder="Buscar producto..."
+                               autocomplete="off"
+                               @input.debounce.300ms="searchProducts($event.target.value)">
+                        
+                        <button x-show="searchQuery.length > 0" @click="clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <button @click="openRechargeModal()" class="ml-3 shrink-0 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg shadow-sm font-bold flex items-center gap-2 transition active:scale-95">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        <span class="hidden md:inline">Recargas</span>
+                    </button>
+
+                    <button @click="devolverEnvase()" class="px-3 py-3 bg-orange-50 text-orange-600 rounded-lg font-bold border border-orange-200 hover:bg-orange-100 transition" title="Devolver Envase al Cliente">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+
+                </div>
+
+                <div class="absolute top-full left-0 w-full bg-white shadow-2xl rounded-b-lg mt-1 border border-gray-100 overflow-hidden max-h-[60vh] overflow-y-auto" 
+                     x-show="searchResults.length > 0" @click.away="searchResults = []" style="display: none; z-index: 100;">
+                    <ul>
+                        <template x-for="product in searchResults" :key="product.id">
+                            <li class="p-3 border-b flex items-center gap-3 active:bg-gray-100 cursor-pointer" 
+                                :class="(!product.is_service && product.stock <= 0) ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50'"
+                                @click="initiateAddToCart(product)">
+                                
+                                <div class="h-12 w-12 bg-gray-200 rounded shrink-0 bg-cover bg-center flex items-center justify-center" :style="product.photo ? `background-image: url('${product.photo}')` : ''">
+                                    <svg x-show="!product.photo && product.is_service" class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                </div>
+                                
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-gray-900 truncate" x-text="product.name"></p>
+                                    
+                                    <div x-show="product.promotions && product.promotions.length > 0" class="mt-1 flex flex-col gap-1">
+                                        <template x-for="promo in product.promotions" :key="promo.id">
+                                            <div class="flex items-center gap-1.5">
+                                                 <span class="bg-green-100 text-green-700 text-[9px] font-bold px-1 rounded border border-green-200">OFERTA</span>
+                                                 <span class="text-[10px] text-green-600 font-bold" x-text="`${parseInt(promo.trigger)} pzs x ${formatMoney(promo.price)}`"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 mt-1">
+
+                                        <span x-show="!product.is_service" class="text-xs font-bold px-1.5 py-0.5 rounded" :class="product.stock > 0 ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-800'">
+                                            Stock: <span x-text="product.stock"></span>
+                                        </span>
+                                        <span x-show="product.is_service" class="text-xs font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Servicio</span>
+
+                                        <span x-show="product.is_returnable" class="text-[10px] font-black px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-200 flex items-center gap-0.5">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                            RETORNABLE
+                                        </span>
+                                        </div>
+
+                                    </div>
+                                </div>
+                                <span class="text-base font-black text-[#3e1717]" x-text="product.is_service ? 'Variable' : formatMoney(product.price)"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2 lg:p-0 mt-2 lg:mt-4 no-scrollbar z-0 relative pb-20 lg:pb-0">
+                <h3 class="text-gray-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1 px-1">
+                    <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    Más Vendidos
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="top-products-grid">
+                    <template x-for="product in topProducts" :key="product.id">
+                        <div @click="initiateAddToCart(product)"
+                             class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex md:flex-col items-center gap-3 relative overflow-hidden transition-all active:scale-95 cursor-pointer h-24 md:h-auto"
+                             :class="[
+                                product.stock <= 0 && !product.is_service ? 'opacity-50 grayscale' : 'hover:border-[#3e1717] hover:shadow-md',
+                                product.promo ? 'border-green-200 bg-green-50/20' : ''
+                             ]">
+                             
+                            <div x-show="product.promo" class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg shadow-sm z-10">
+                                OFERTA
+                            </div>
+
+                            <div x-show="product.is_returnable" class="absolute top-0 left-0 bg-[#ea580c] text-white text-[9px] font-black px-2 py-0.5 rounded-br-lg shadow-sm flex items-center gap-1 z-10">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                ENVASE
+                            </div>
+                            <div class="h-20 w-20 md:w-full md:h-32 bg-gray-100 rounded-lg bg-cover bg-center shrink-0 relative flex items-center justify-center"
+                                 :style="product.photo ? `background-image: url('${product.photo}')` : ''">
+                                 
+                                 <div x-show="product.stock <= 0 && !product.is_service" class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                                    <span class="text-[10px] font-black text-white -rotate-12 border-2 border-white px-1">AGOTADO</span>
+                                 </div>
+                                 <svg x-show="!product.photo && product.is_service" class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            </div>
+
+                            <div class="flex-1 min-w-0 flex flex-col justify-center w-full">
+                                <p class="text-sm font-bold text-gray-800 leading-tight line-clamp-2 md:text-center" x-text="product.name"></p>
+                                
+                                <div class="mt-1 flex md:flex-col items-center justify-between md:justify-center w-full">
+                                    <span class="text-lg font-black text-[#3e1717]" x-text="formatMoney(product.price)"></span>
+                                    <span x-show="!product.is_service" class="text-[10px] font-bold px-1.5 rounded ml-2 md:ml-0 md:mt-1" 
+                                          :class="product.stock > 0 ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700'"
+                                          x-text="`Stock: ${product.stock}`"></span>
+                                </div>
+
+                                <div x-show="product.promotions && product.promotions.length > 0" class="w-full flex flex-col gap-1 items-center mt-2">
+                                    <template x-for="promo in product.promotions" :key="promo.id">
+                                        <span class="text-[10px] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200 whitespace-nowrap shadow-sm"
+                                              x-text="`${promo.desc || 'Pack'} ${parseInt(promo.trigger)} x ${formatMoney(promo.price)}`">
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-1/3 bg-white shadow-xl flex flex-col border-l border-gray-200 z-40 fixed top-0 left-0 right-0 bottom-16 lg:static lg:h-full"
+             :class="mobileTab === 'ticket' ? 'flex' : 'hidden lg:flex'">
+            
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
+                <div class="flex items-center gap-2">
+                    <button @click="mobileTab = 'products'" class="lg:hidden p-2 rounded-full hover:bg-gray-200">
+                        <svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h2 class="text-lg font-black text-gray-900">Ticket Actual</h2>
+                        <p class="text-xs text-gray-500 font-bold">{{ request.user.username }}</p>
+                    </div>
+                </div>
+                <button @click="cart=[]" x-show="cart.length > 0" class="text-xs text-red-600 font-bold underline">Vaciar</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-100 pb-32 lg:pb-0">
+                <template x-for="(item, index) in cart" :key="index">
+                    <div class="flex justify-between items-start p-3 bg-white border border-gray-300 rounded-lg shadow-sm transition-colors duration-300"
+                         :class="hasActivePromo(item) ? 'border-green-400 bg-green-50' : ''">
+                        
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-gray-900 line-clamp-2" x-text="item.name"></p>
+                            
+                            <div x-show="item.deposit_charged > 0" class="mt-1 flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 w-max">
+                                <svg class="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span class="text-[10px] font-bold text-orange-800">Importe Envase: +<span x-text="formatMoney(item.deposit_charged)"></span></span>
+                            </div>
+
+                            <div class="mt-1 mb-1 flex flex-col gap-1" x-show="hasActivePromo(item)">
+                                <template x-for="textoPromo in getAppliedPromos(item)">
+                                    <div class="flex items-center gap-1 bg-green-50 px-2 py-1 rounded border border-green-200 w-max">
+                                        <svg class="w-3 h-3 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                        </svg>
+                                        <span class="text-[10px] font-bold text-green-800" x-text="textoPromo"></span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="flex flex-col mt-1">
+                                <div class="flex items-center mt-1">
+                                    <button @click="updateQuantity(item, -1)" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-bold flex items-center justify-center active:bg-gray-200 hover:bg-gray-200 transition">-</button>
+                                    <input type="number" x-model.number="item.quantity" class="w-12 mx-1 p-1 border-0 bg-transparent text-center text-lg font-bold text-gray-900 focus:ring-0" readonly>
+                                    <button @click="updateQuantity(item, 1)" class="w-8 h-8 rounded-full bg-[#3e1717] text-white font-bold flex items-center justify-center active:bg-[#2a1010] hover:bg-[#5a2323] transition">+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="font-black text-lg" 
+                                  :class="hasActivePromo(item) ? 'text-green-700' : 'text-gray-900'" 
+                                  x-text="formatMoney(calculateItemTotal(item) + (item.deposit_charged || 0))"></span>
+                            
+                            <template x-if="hasActivePromo(item)">
+                                <span class="text-[9px] text-gray-400 line-through" x-text="formatMoney((item.quantity * item.price) + (item.deposit_charged || 0))"></span>
+                            </template>
+
+                            <button @click="removeFromCart(index)" class="text-red-400 p-1 hover:text-red-600 transition mt-1"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="cart.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50">
+                    <p class="text-sm font-medium">Carrito vacío</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.1)] z-20 shrink-0">
+                <div class="flex justify-between items-end mb-3">
+                    <span class="text-sm font-bold text-gray-600">TOTAL:</span>
+                    <span class="text-4xl font-black text-[#3e1717]" x-text="formatMoney(finalTotalToPay)"></span>
+                </div>
+
+                <div class="flex items-center mb-3 justify-between bg-gray-50 p-2 rounded">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" x-model="payWithCard" class="form-checkbox h-5 w-5 text-[#3e1717] rounded border-gray-300 focus:ring-[#3e1717]">
+                        <span class="ml-2 text-gray-900 font-bold text-sm">Pago Tarjeta</span>
+                    </label>
+                    <span x-show="payWithCard" class="text-xs font-bold text-blue-700 animate-pulse">+4.06%</span>
+                </div>
+
+                <div class="grid gap-3 mb-3">
+                    <div x-show="payWithCard" class="relative">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">1. Paga en Efectivo</label>
+                        <input type="number" x-model.number="cashDebtInput" class="w-full p-2 border-2 border-gray-300 rounded text-right font-bold text-gray-900 focus:border-green-500 focus:ring-0" placeholder="$0.00">
+                    </div>
+                    
+                    <div x-show="payWithCard" class="flex flex-col items-center justify-center bg-blue-50 border border-blue-200 rounded p-2 text-center">
+                        <span class="text-xs font-bold text-blue-800 uppercase tracking-wide">Cobrar en Terminal</span>
+                        <span class="text-3xl font-black text-blue-700 mt-1" x-text="formatMoney(cardChargeAmount)"></span>
+                    </div>
+
+                    <div class="flex gap-2" x-show="!payWithCard || (payWithCard && cashDebtInput > 0)">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Recibido</label>
+                            <input type="number" x-model.number="cashReceivedInput" class="w-full p-2 border-2 border-gray-300 rounded text-right font-bold text-gray-900 focus:border-green-500 focus:ring-0" placeholder="$">
+                        </div>
+                        <div class="flex-1 bg-gray-100 rounded border border-gray-200 flex flex-col justify-center px-2 items-end">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase">Cambio</span>
+                            <span class="text-lg font-black" :class="change >= 0 ? 'text-green-600' : 'text-red-500'" x-text="formatMoney(change)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button @click="processTransaction('WITHDRAWAL')" class="px-3 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold border border-gray-300" title="Toma Interna">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    </button>
+                    <button @click="processTransaction('SALE')" 
+                            class="flex-1 py-3 bg-[#3e1717] text-white rounded-lg shadow-lg font-black text-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                            :disabled="cart.length === 0 || (payWithCard && cashDebtInput > 0 && change < 0) || (!payWithCard && change < 0 && cashReceivedInput > 0)">
+                        COBRAR <span x-text="formatMoney(finalTotalToPay)" class="text-sm font-normal opacity-80"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 shadow-[0_-4px_6px_rgba(0,0,0,0.05)]">
+        <button @click="mobileTab = 'products'" 
+                class="flex flex-col items-center justify-center w-1/2 h-full active:bg-gray-50"
+                :class="mobileTab === 'products' ? 'text-[#3e1717]' : 'text-gray-400'">
+            <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            <span class="text-xs font-bold">Catálogo</span>
+        </button>
+
+        <button @click="mobileTab = 'ticket'" 
+                class="flex flex-col items-center justify-center w-1/2 h-full active:bg-gray-50 relative"
+                :class="mobileTab === 'ticket' ? 'text-[#3e1717]' : 'text-gray-400'">
+            <div class="relative">
+                <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                <span x-show="cart.length > 0" class="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-black rounded-full h-4 w-4 flex items-center justify-center animate-bounce" x-text="cart.length"></span>
+            </div>
+            <span class="text-xs font-bold">Ticket</span>
+        </button>
+    </div>
+
+    <div x-show="showWeightModal" class="fixed inset-0 z-[9999]" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 text-center">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity" @click="showWeightModal = false"></div>
+            <div class="inline-block bg-white rounded-lg text-left overflow-hidden shadow-xl w-full max-w-sm relative z-50">
+                <div class="bg-[#3e1717] px-4 py-3"><h3 class="text-lg font-bold text-white">Ingresar Peso</h3></div>
+                <div class="p-6">
+                    <p class="text-base text-gray-900 mb-4 font-bold">Producto: <span x-text="tempProduct ? tempProduct.name : ''"></span></p>
+                    <div class="relative rounded-md shadow-sm">
+                        <input type="number" step="0.001" x-model="weightInput" id="weight-input-field" class="focus:ring-[#3e1717] block w-full text-3xl font-black text-gray-900 text-center border-2 border-gray-300 rounded-md py-4 pr-12" placeholder="0.000" @keydown.enter="confirmWeight()">
+                        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><span class="text-gray-500 font-bold text-xl">Kg</span></div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 flex justify-end gap-2">
+                    <button @click="showWeightModal = false" class="px-4 py-2 border rounded-md font-bold">Cancelar</button>
+                    <button @click="confirmWeight()" class="px-4 py-2 bg-[#3e1717] text-white rounded-md font-bold">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showCloseModal" class="fixed inset-0 z-[9999]" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 text-center">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-90" @click="showCloseModal = false"></div>
+            <div class="inline-block bg-white rounded-lg text-left overflow-hidden shadow-xl w-full max-w-sm relative z-50">
+                <div class="bg-white px-4 pt-5 pb-4">
+                    <h3 class="text-lg font-black text-gray-900">Realizar Corte</h3>
+                    <form id="closeShiftForm" action="{% url 'cerrar_caja' %}" method="POST" class="mt-4">
+                        {% csrf_token %}
+                        <label class="block text-sm font-bold text-gray-900 mb-1">Efectivo en Caja:</label>
+                        <input type="number" step="0.50" name="dinero_fisico" required autofocus class="block w-full text-lg border-2 border-gray-300 rounded-md py-3 text-gray-900 font-bold px-2">
+                    </form>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                    <button type="button" @click="showCloseModal = false" class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 rounded-md font-bold text-gray-700">Cancelar</button>
+                    <button type="submit" form="closeShiftForm" class="w-full sm:w-auto px-4 py-2 bg-[#3e1717] text-white rounded-md font-bold">Finalizar Turno</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showRechargeModal" x-cloak class="fixed inset-0 z-[9999] flex items-center justify-center p-4" style="display: none;">
+        <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" @click="showRechargeModal = false"></div>
+        
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden relative z-10 transform transition-all"
+             x-show="showRechargeModal"
+             x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100">
+            <div class="bg-purple-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-xl font-black text-white flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Cobro de Servicio
+                </h3>
+                <button @click="showRechargeModal = false" class="text-white hover:text-gray-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Compañía / Servicio</label>
+                    <select x-model="rechargeData.product_id" class="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-gray-800 focus:border-purple-500 outline-none">
+                        <option value="">-- Seleccionar --</option>
+                        <template x-for="srv in servicesList" :key="srv.id">
+                            <option :value="srv.id" x-text="srv.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Monto a Cobrar ($)</label>
+                    <input type="number" step="0.50" x-model="rechargeData.amount" class="w-full border-2 border-gray-300 rounded-xl p-3 font-black text-3xl text-center text-purple-700 focus:border-purple-500 outline-none" placeholder="0.00">
+                </div>
+                
+                <button @click="addRechargeToCart()" class="w-full py-4 bg-purple-600 text-white font-black text-lg rounded-xl shadow-lg hover:bg-purple-700 active:scale-95 transition mt-4">
+                    AGREGAR AL TICKET
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="{% static 'js/pos.js' %}"></script>
+{% endblock %}

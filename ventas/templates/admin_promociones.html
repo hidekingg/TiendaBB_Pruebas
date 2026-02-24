@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block header_title %}Gestión de Promociones{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    
+    .input-box {
+        width: 100%; border: 2px solid #e5e7eb; border-radius: 0.75rem; 
+        padding: 0.65rem 0.75rem; font-weight: 600; color: #1f2937; 
+        background-color: #fff; transition: all 0.2s;
+    }
+    .input-box:focus { border-color: #3e1717; outline: none; box-shadow: 0 0 0 1px #3e1717; }
+    
+    .search-result-item:hover { background-color: #f9fafb; cursor: pointer; }
+    
+    /* Scrollbar personalizada para la lista de resultados */
+    .results-list::-webkit-scrollbar { width: 6px; }
+    .results-list::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 4px; }
+</style>
+
+<div class="max-w-full mx-auto pb-24 px-4" x-data="promoManager()">
+
+    <div class="bg-white p-4 rounded-3xl shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-20 border border-gray-100">
+        <h2 class="text-xl font-black text-gray-800 pl-2">Ofertas Activas</h2>
+        
+        <button @click="openModal('create')" class="w-full md:w-auto bg-[#3e1717] hover:bg-[#2a1010] text-white font-bold py-3 px-8 rounded-2xl shadow-lg transform transition hover:scale-105 flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            NUEVA PROMOCIÓN
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {% for p in promociones %}
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden relative transition hover:shadow-xl hover:border-gray-300 group"
+             :class="{'opacity-60 grayscale': '{{ p.is_active }}' == 'False'}">
+            
+            {% if not p.is_active %}
+            <div class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full z-10">INACTIVA</div>
+            {% endif %}
+
+            <div class="p-4 flex items-center gap-4 border-b border-gray-50">
+                <div class="h-16 w-16 bg-gray-50 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200">
+                    {% if p.product.photo %}
+                        <img src="{{ p.product.photo.url }}" class="w-full h-full object-contain">
+                    {% else %}
+                        <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">{{ p.product.brand.name|default:"Generico" }}</p>
+                    <h3 class="text-sm font-bold text-gray-800 leading-tight line-clamp-2 h-10">{{ p.product.name }}</h3>
+                    <p class="text-xs text-gray-500 mt-1">Normal: ${{ p.product.sale_price }}</p>
+                </div>
+            </div>
+
+            <div class="p-5 flex-1 flex flex-col justify-center items-center bg-yellow-50/50">
+                <span class="text-xs font-bold text-yellow-700 uppercase tracking-widest mb-1">Oferta Especial</span>
+                <div class="text-3xl font-black text-[#3e1717] flex items-baseline gap-1">
+                    <span class="text-lg">Pack {{ p.trigger_quantity|floatformat:0 }} x</span>
+                    ${{ p.promo_price }}
+                </div>
+                <p class="text-xs text-gray-500 mt-2 text-center italic h-4 overflow-hidden">"{{ p.description }}"</p>
+            </div>
+
+            <div class="p-4 border-t border-gray-100 flex gap-2">
+                <button @click="openModal('update', {{ p.promo_id }}, {{ p.product.product_id }}, '{{ p.product.name|escapejs }}', '{{ p.product.photo.url|default:'' }}', {{ p.product.sale_price }}, {{ p.trigger_quantity }}, {{ p.promo_price }}, '{{ p.description|escapejs }}')" 
+                        class="flex-1 bg-white border-2 border-gray-200 text-gray-600 font-bold py-2 rounded-xl hover:bg-gray-50 transition text-sm">
+                    Editar
+                </button>
+                
+                {% if p.is_active %}
+                <button @click="toggleStatus({{ p.promo_id }}, 'deactivate')" class="px-4 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition font-bold" title="Desactivar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </button>
+                {% else %}
+                <button @click="toggleStatus({{ p.promo_id }}, 'activate')" class="px-4 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition font-bold" title="Activar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity" x-show="showModal" x-transition.opacity></div>
+
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-visible flex flex-col max-h-[90vh] transform transition-all"
+             x-show="showModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0">
+            
+            <div class="bg-[#3e1717] px-6 py-4 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-white tracking-wide" x-text="mode === 'create' ? '✨ Crear Nueva Promoción' : '✏️ Editar Promoción'"></h3>
+                <button @click="showModal = false" class="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="p-6 md:p-8 overflow-visible flex-1 relative">
+                
+                <div x-show="mode === 'create' && !selectedProduct" class="mb-6 relative">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">1. Busca el Producto a promocionar:</label>
+                    <div class="relative">
+                        <input type="text" x-model="searchQuery" @input.debounce.300ms="searchProducts()" 
+                               class="input-box !pl-12" placeholder="Escribe nombre (ej: huevo) o código...">
+                        
+                        <div class="absolute left-4 top-3 text-gray-400">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                    </div>
+                
+                    <div x-show="searchResults.length > 0" 
+                         class="results-list mt-2 border border-gray-200 rounded-xl overflow-hidden max-h-[500px] overflow-y-auto shadow-2xl bg-white absolute w-full z-50 top-full left-0">
+                        
+                        <template x-for="prod in searchResults" :key="prod.id">
+                            <div @click="selectProduct(prod)" class="p-4 border-b border-gray-50 flex items-center gap-3 search-result-item transition-colors hover:bg-yellow-50 cursor-pointer">
+                                <div class="h-14 w-14 bg-gray-100 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                     <img x-show="prod.photo" :src="prod.photo" class="w-full h-full object-contain">
+                                     <svg x-show="!prod.photo" class="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </div>
+                                
+                                <div class="flex-1">
+                                    <p class="text-base font-bold text-gray-800 leading-tight" x-text="prod.name"></p>
+                                    <p class="text-xs text-gray-500 font-mono mt-0.5" x-text="prod.barcode"></p>
+                                </div>
+                                <div class="ml-auto text-lg font-black text-[#3e1717]" x-text="`$${prod.price}`"></div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div x-show="searchQuery.length > 2 && searchResults.length === 0" class="mt-2 text-center text-sm text-gray-400 p-4 border border-dashed rounded-lg bg-gray-50">
+                        No encontramos nada con esa búsqueda.
+                    </div>
+                </div>
+
+                <div x-show="selectedProduct" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                    
+                    <div class="bg-gray-50 rounded-2xl p-4 border border-gray-200 flex items-center gap-4 mb-6 relative">
+                        <button x-show="mode === 'create'" @click="selectedProduct = null; searchResults = []" class="absolute top-2 right-2 text-xs text-red-500 font-bold hover:underline bg-white px-2 py-1 rounded shadow-sm">
+                            Cambiar Producto
+                        </button>
+                        
+                        <div class="h-16 w-16 bg-white rounded-xl shadow-sm overflow-hidden flex items-center justify-center flex-shrink-0 border border-gray-100">
+                            <img x-show="selectedProduct?.photo" :src="selectedProduct?.photo" class="w-full h-full object-contain">
+                            <svg x-show="!selectedProduct?.photo" class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">Aplicando a:</p>
+                            <h4 class="text-sm font-black text-gray-900 leading-tight" x-text="selectedProduct?.name"></h4>
+                            <p class="text-sm font-medium text-gray-600 mt-1">Precio Regular: <strong x-text="`$${selectedProduct?.price}`"></strong></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="col-span-1">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cantidad Activadora</label>
+                            <input type="number" x-model="formData.trigger_quantity" class="input-box text-center text-lg" placeholder="Ej: 3">
+                            <p class="text-[10px] text-gray-400 mt-1 text-center">"Al llevar 3..."</p>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-xs font-bold text-[#3e1717] uppercase mb-1">Precio Oferta Total</label>
+                            <input type="number" step="0.50" x-model="formData.promo_price" class="input-box text-center text-lg border-[#3e1717] text-[#3e1717]" placeholder="$">
+                            <p class="text-[10px] text-gray-400 mt-1 text-center">"...el total es este"</p>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción Corta</label>
+                            <input type="text" x-model="formData.description" class="input-box" placeholder="Ej: Martes de 3x2">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 text-center" x-show="formData.trigger_quantity > 0 && formData.promo_price > 0">
+                        <p class="text-xs text-gray-500 mb-1">Precio normal por lote: <span class="line-through" x-text="`$${(selectedProduct?.price * formData.trigger_quantity).toFixed(2)}`"></span></p>
+                        <p class="text-base font-bold text-green-700">
+                            ¡Ahorro total: <span class="text-xl" x-text="`$${((selectedProduct?.price * formData.trigger_quantity) - formData.promo_price).toFixed(2)}`"></span>!
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200 shrink-0 sticky bottom-0 z-30">
+                <button @click="showModal = false" class="px-6 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition">Cancelar</button>
+                <button @click="submitForm()" class="px-8 py-2.5 rounded-xl bg-[#3e1717] text-white font-bold hover:bg-[#2a1010] shadow-lg transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="!selectedProduct || !formData.trigger_quantity || !formData.promo_price">
+                    GUARDAR PROMOCIÓN
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function promoManager() {
+        return {
+            showModal: false,
+            mode: 'create',
+            searchQuery: '',
+            searchResults: [],
+            selectedProduct: null,
+            
+            formData: {
+                promo_id: null,
+                trigger_quantity: '',
+                promo_price: '',
+                description: ''
+            },
+
+            async searchProducts() {
+                if (this.searchQuery.length < 2) { this.searchResults = []; return; }
+                try {
+                    const res = await fetch(`/api/products/search/?q=${this.searchQuery}`);
+                    if (res.ok) this.searchResults = await res.json();
+                } catch (e) { console.error(e); }
+            },
+
+            selectProduct(prod) {
+                this.selectedProduct = prod;
+                this.searchResults = [];
+                this.searchQuery = '';
+            },
+
+            openModal(mode, promo_id=null, prod_id=null, prod_name=null, prod_photo=null, prod_price=0, trigger=null, price=null, desc='') {
+                this.mode = mode;
+                this.showModal = true;
+                
+                if (mode === 'update') {
+                    // Cargar datos existentes
+                    this.selectedProduct = {
+                        id: prod_id,
+                        name: prod_name,
+                        photo: prod_photo && prod_photo !== 'None' ? prod_photo : null,
+                        price: parseFloat(prod_price)
+                    };
+                    this.formData = {
+                        promo_id: promo_id,
+                        trigger_quantity: parseFloat(trigger),
+                        promo_price: parseFloat(price),
+                        description: desc
+                    };
+                } else {
+                    // Limpiar para crear
+                    this.selectedProduct = null;
+                    this.searchQuery = '';
+                    this.searchResults = [];
+                    this.formData = { promo_id: null, trigger_quantity: '', promo_price: '', description: '' };
+                }
+            },
+
+            async submitForm() {
+                const form = new FormData();
+                form.append('accion', this.mode);
+                form.append('product_id', this.selectedProduct.id);
+                form.append('trigger_quantity', this.formData.trigger_quantity);
+                form.append('promo_price', this.formData.promo_price);
+                form.append('description', this.formData.description);
+                if (this.mode === 'update') form.append('promo_id', this.formData.promo_id);
+
+                try {
+                    const res = await fetch('/api/admin/promociones/accion/', { method: 'POST', body: form });
+                    const data = await res.json();
+                    
+                    if (data.status === 'success') {
+                        this.showModal = false;
+                        Swal.fire({icon: 'success', title: 'Guardado', timer: 1000, showConfirmButton: false}).then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                } catch (e) { Swal.fire('Error', 'Fallo de red', 'error'); }
+            },
+
+            async toggleStatus(id, action) {
+                const form = new FormData();
+                form.append('accion', action);
+                form.append('promo_id', id);
+                
+                try {
+                    const res = await fetch('/api/admin/promociones/accion/', { method: 'POST', body: form });
+                    if (res.ok) location.reload();
+                } catch (e) { console.error(e); }
+            }
+        }
+    }
+</script>
+{% endblock %}

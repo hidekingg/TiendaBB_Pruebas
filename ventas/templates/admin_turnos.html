@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% block header_title %}Control y Verificación de Turnos{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+
+<style>
+    [x-cloak] { display: none !important; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="shiftsManager()">
+    
+    <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 border border-gray-200 items-end">
+        
+        <div class="w-full md:w-1/4">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Usuario / Cajero</label>
+            <select x-model="filters.user" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none bg-white">
+                <option value="">-- Todos --</option>
+                <template x-for="u in usersList" :key="u.user_id">
+                    <option :value="u.user_id" x-text="u.full_name"></option>
+                </template>
+            </select>
+        </div>
+
+        <div class="w-full md:w-1/4">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Estatus</label>
+            <select x-model="filters.status" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none bg-white">
+                <option value="">-- Todos --</option>
+                <option value="OPEN">Turno Activo (Abierto)</option>
+                <option value="CLOSED">Corte Realizado (Cerrado)</option>
+            </select>
+        </div>
+
+        <div class="w-full md:w-1/6">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Desde</label>
+            <input type="date" x-model="filters.start" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/6">
+            <label class="block text-xs font-black text-gray-500 uppercase mb-1 tracking-wide">Hasta</label>
+            <input type="date" x-model="filters.end" class="w-full border-2 border-gray-200 rounded-lg p-2.5 font-bold text-gray-700 focus:border-[#3e1717] outline-none">
+        </div>
+
+        <div class="w-full md:w-1/6 flex gap-2">
+            <button @click="loadShifts(1)" class="flex-1 bg-[#3e1717] text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-[#2a1010] transition active:scale-95 flex items-center justify-center">
+                Filtrar
+            </button>
+            <button @click="resetFilters()" class="px-3 bg-gray-200 text-gray-700 font-bold py-2.5 rounded-lg shadow-sm hover:bg-gray-300 transition" title="Limpiar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider font-black">
+                        <th class="p-4">Estatus</th>
+                        <th class="p-4">Cajero</th>
+                        <th class="p-4">Horarios</th>
+                        <th class="p-4 text-right">Efectivo Inicial</th>
+                        <th class="p-4 text-center">Diferencia Final</th>
+                        <th class="p-4 text-center">Revisión</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr x-show="isLoading"><td colspan="6" class="p-8 text-center text-gray-400 font-bold">Buscando turnos...</td></tr>
+                    <tr x-show="!isLoading && shifts.length === 0"><td colspan="6" class="p-8 text-center text-gray-400 font-bold">No se encontraron turnos.</td></tr>
+                    
+                    <template x-for="shift in shifts" :key="shift.id">
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="p-4">
+                                <span x-show="!shift.is_closed" class="flex items-center gap-1.5 text-xs font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-200 w-max">
+                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ACTIVO
+                                </span>
+                                <span x-show="shift.is_closed" class="text-xs font-black text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200 w-max">
+                                    CERRADO
+                                </span>
+                            </td>
+                            
+                            <td class="p-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-black text-xs" x-text="shift.user.charAt(0)"></div>
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-900 block leading-tight" x-text="shift.user"></span>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase" x-text="`Turno #${shift.id}`"></span>
+                                    </div>
+                                </div>
+                            </td>
+                            
+                            <td class="p-4">
+                                <p class="text-xs font-bold text-gray-600">Abre: <span class="font-mono" x-text="shift.start_time"></span></p>
+                                <p class="text-xs font-bold mt-0.5" :class="shift.is_closed ? 'text-gray-600' : 'text-green-600'">Cierra: <span class="font-mono" x-text="shift.end_time"></span></p>
+                            </td>
+
+                            <td class="p-4 text-right font-mono font-black text-gray-800 text-sm" x-text="formatMoney(shift.initial_cash)"></td>
+
+                            <td class="p-4 text-center">
+                                <span x-show="!shift.is_closed" class="text-xs text-gray-400 font-bold italic">En progreso...</span>
+                                
+                                <div x-show="shift.is_closed">
+                                    <span x-show="shift.difference === 0" class="text-sm font-black text-gray-500 bg-gray-100 px-2 py-1 rounded border">Corte Exacto</span>
+                                    
+                                    <span x-show="shift.difference > 0" class="text-sm font-black text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
+                                        + <span x-text="formatMoney(shift.difference)"></span> (Sobró)
+                                    </span>
+                                    
+                                    <span x-show="shift.difference < 0" class="text-sm font-black text-red-700 bg-red-50 px-2 py-1 rounded border border-red-200">
+                                        <span x-text="formatMoney(shift.difference)"></span> (Faltó)
+                                    </span>
+                                </div>
+                            </td>
+
+                            <td class="p-4 text-center">
+                                <button @click="openModal(shift)" class="text-[#3e1717] bg-red-50 hover:bg-red-100 p-2 rounded-lg transition font-bold text-xs inline-flex items-center gap-1 border border-red-100">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    Detalle
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-xs font-bold text-gray-500">Total de registros: <span class="text-gray-900 text-sm" x-text="pagination.total_records"></span></div>
+            <div class="flex gap-2" x-show="pagination.num_pages > 1">
+                <button @click="loadShifts(pagination.current_page - 1)" :disabled="!pagination.has_previous" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 shadow-sm transition">Anterior</button>
+                <span class="px-4 py-2 text-sm font-black text-[#3e1717] bg-red-50 border border-red-100 rounded-lg flex items-center" x-text="`${pagination.current_page} / ${pagination.num_pages}`"></span>
+                <button @click="loadShifts(pagination.current_page + 1)" :disabled="!pagination.has_next" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold bg-white hover:bg-gray-100 disabled:opacity-50 shadow-sm transition">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" @click="showModal = false"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10">
+            <div class="px-6 py-4 border-b flex justify-between items-center" :class="activeShift?.is_closed ? 'bg-gray-800' : 'bg-green-600'">
+                <h3 class="text-lg font-black text-white flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Resumen de Caja
+                </h3>
+                <button @click="showModal = false" class="text-white/70 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            
+            <div class="p-6 bg-gray-50">
+                <div class="text-center mb-6">
+                    <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">Cajero</p>
+                    <p class="text-2xl font-black text-[#3e1717]" x-text="activeShift?.user"></p>
+                    <p class="text-xs font-bold text-gray-400 mt-1" x-text="activeShift?.is_closed ? 'TURNO FINALIZADO' : 'TURNO ACTUAL'"></p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3 font-mono text-sm">
+                    <div class="flex justify-between border-b pb-2">
+                        <span class="text-gray-500">Efectivo Inicial:</span>
+                        <span class="font-black text-gray-800" x-text="formatMoney(activeShift?.initial_cash)"></span>
+                    </div>
+                    
+                    <div x-show="activeShift?.is_closed">
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500">Esperado (Sistema):</span>
+                            <span class="font-black text-gray-800" x-text="formatMoney(activeShift?.final_expected)"></span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2 pt-1">
+                            <span class="text-gray-500">Declarado (Cajero):</span>
+                            <span class="font-black text-blue-700" x-text="formatMoney(activeShift?.final_counted)"></span>
+                        </div>
+                        
+                        <div class="flex justify-between pt-2 text-base">
+                            <span class="text-gray-500 font-bold">Diferencia:</span>
+                            
+                            <span x-show="activeShift?.difference === 0" class="font-black text-gray-500">Exacto ($0.00)</span>
+                            
+                            <span x-show="activeShift?.difference > 0" class="font-black text-green-600">
+                                +<span x-text="formatMoney(activeShift?.difference)"></span>
+                            </span>
+                            
+                            <span x-show="activeShift?.difference < 0" class="font-black text-red-600">
+                                <span x-text="formatMoney(activeShift?.difference)"></span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div x-show="!activeShift?.is_closed" class="text-center py-4 text-gray-400 font-bold italic font-sans text-xs">
+                        Los datos de cierre se calcularán cuando el cajero finalice su turno.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function shiftsManager() {
+        return {
+            shifts: [],
+            usersList: [],
+            isLoading: false,
+            showModal: false,
+            activeShift: null,
+            filters: { user: '', status: '', start: '', end: '' },
+            pagination: { current_page: 1, num_pages: 1, has_next: false, has_previous: false, total_records: 0 },
+
+            init() {
+                // Fechas por defecto (Últimos 15 días)
+                const today = new Date();
+                const past = new Date();
+                past.setDate(today.getDate() - 15);
+                
+                this.filters.end = today.toISOString().split('T')[0];
+                this.filters.start = past.toISOString().split('T')[0];
+                
+                this.loadUsers();
+                this.loadShifts(1);
+            },
+
+            formatMoney(val) { return new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN'}).format(val||0); },
+
+            async loadUsers() {
+                try {
+                    const res = await fetch('/api/admin/usuarios/lista/');
+                    if(res.ok) this.usersList = await res.json();
+                } catch (e) { console.error(e); }
+            },
+
+            async loadShifts(page = 1) {
+                this.isLoading = true;
+                const params = new URLSearchParams({
+                    user: this.filters.user,
+                    status: this.filters.status,
+                    start: this.filters.start,
+                    end: this.filters.end,
+                    page: page
+                });
+                
+                try {
+                    const res = await fetch(`/api/admin/turnos/lista/?${params}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.shifts = data.shifts;
+                        this.pagination = data.pagination;
+                    }
+                } catch (e) { console.error(e); }
+                this.isLoading = false;
+            },
+
+            resetFilters() {
+                this.filters.user = '';
+                this.filters.status = '';
+                this.init(); 
+            },
+
+            openModal(shift) {
+                this.activeShift = shift;
+                this.showModal = true;
+            }
+        }
+    }
+</script>
+{% endblock %}
