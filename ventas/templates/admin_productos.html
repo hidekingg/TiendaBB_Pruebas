@@ -511,8 +511,10 @@
                 
                 form.set('is_weighted', this.formData.is_weighted ? 'true' : 'false');
                 form.set('is_service', this.formData.is_service ? 'true' : 'false');
-                form.append('is_returnable', this.formData.is_returnable);
-                form.append('deposit_price', this.formData.deposit_price);
+                
+                // CORRECCIÓN AQUÍ: Evitamos que envíe la palabra "undefined"
+                form.set('is_returnable', this.formData.is_returnable ? 'true' : 'false');
+                form.set('deposit_price', this.formData.deposit_price || '0');
 
                 if (this.formData.is_service) {
                     form.set('cost_price', '0');
@@ -520,6 +522,8 @@
                     form.set('min_stock', '0');
                     form.set('barcode', '');
                     form.set('description', 'Servicio / Recarga Electrónica');
+                    
+                    // CORRECCIÓN AQUÍ: Garantizamos que la comisión nunca sea undefined
                     form.set('service_commission', this.formData.service_commission || '0');
 
                     const uomSelect = document.getElementById('uomSelect');

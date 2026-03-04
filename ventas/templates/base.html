@@ -35,44 +35,57 @@
 <body class="h-full">
 
 <div class="min-h-full">
-  <nav class="bg-[#3e1717]">
+  <nav class="bg-[#3e1717] shadow-md relative z-50">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="flex h-16 items-center justify-between">
+        
         <div class="flex items-center">
-          
-          <div class="shrink-0">
-             <img class="size-10 bg-white rounded-full p-1" src="{% static 'ventas/BBLogo.png' %}" alt="El Baratillo">
+          <div class="shrink-0 flex items-center justify-center">
+             <img class="h-10 w-auto object-contain" src="{% static 'ventas/BBLogo.png' %}" alt="El Baratillo">
           </div>
           
           <div class="hidden md:block">
-            <div class="ml-10 flex items-baseline space-x-4">
+            <div class="ml-8 flex items-center space-x-1">
               {% with request.resolver_match.url_name as url_name %}
               
               <a href="{% url 'dashboard_admin' %}" 
-                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'dashboard_admin' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 class="rounded-md px-3 py-2 text-sm font-medium transition-colors {% if url_name == 'dashboard_admin' %}bg-[#2a1010] text-white shadow-inner{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
                  Resumen
               </a>
 
               <a href="{% url 'punto_venta' %}" 
-                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'punto_venta' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 class="rounded-md px-3 py-2 text-sm font-medium transition-colors {% if url_name == 'punto_venta' %}bg-[#2a1010] text-white shadow-inner{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
                  Punto de Venta
               </a>
 
               <a href="{% url 'inventario' %}" 
-                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'inventario' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 class="rounded-md px-3 py-2 text-sm font-medium transition-colors {% if url_name == 'inventario' %}bg-[#2a1010] text-white shadow-inner{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
                  Inventario
               </a>
 
               <a href="{% url 'reporte_finanzas' %}" 
-                 class="rounded-md px-3 py-2 text-sm font-medium {% if url_name == 'reporte_finanzas' %}bg-[#2a1010] text-white{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                 class="rounded-md px-3 py-2 text-sm font-medium transition-colors {% if url_name == 'reporte_finanzas' %}bg-[#2a1010] text-white shadow-inner{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
                  Reportes
               </a>
 
-              {% if request.session.user_role == 'ADMIN' %}
-              <a href="{% url 'menu_administracion' %}" 
-                 class="rounded-md px-3 py-2 text-sm font-medium border border-red-800 {% if url_name == 'admin_productos' %}bg-[#2a1010] text-white{% else %}text-red-200 hover:bg-[#4a2020] hover:text-white{% endif %}">
-                 Administración
+              <a href="{% url 'cotizador_impresiones' %}" 
+                 class="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors {% if url_name == 'cotizador_impresiones' %}bg-[#2a1010] text-white shadow-inner{% else %}text-gray-300 hover:bg-[#4a2020] hover:text-white{% endif %}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Cotizador
               </a>
+
+              {% if request.session.user_role == 'ADMIN' %}
+              <div class="pl-2 ml-2 border-l border-[#5a2b2b]">
+                  <a href="{% url 'menu_administracion' %}" class="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-md transition-all active:scale-95">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      </svg>
+                      Administración
+                  </a>
+              </div>
               {% endif %}
               
               {% endwith %}
@@ -83,10 +96,10 @@
         <div class="hidden md:block">
           <div class="ml-4 flex items-center md:ml-6">
             
-            <button type="button" class="relative rounded-full p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+            <button type="button" class="relative rounded-full p-1 text-gray-400 hover:text-white transition focus:outline-none">
               <span class="absolute -inset-1.5"></span>
               <span class="sr-only">Ver notificaciones</span>
-              <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+              <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
               </svg>
             </button>
@@ -130,21 +143,27 @@
       </div>
     </div>
 
-    <el-disclosure id="mobile-menu" hidden class="block md:hidden bg-[#3e1717]">
+    <el-disclosure id="mobile-menu" hidden class="block md:hidden bg-[#3e1717] shadow-inner border-t border-[#2a1010]">
       <div class="space-y-1 px-2 pt-2 pb-3 sm:px-3">
-        <a href="{% url 'dashboard_admin' %}" class="block rounded-md bg-[#2a1010] px-3 py-2 text-base font-medium text-white">Resumen</a>
+        <a href="{% url 'dashboard_admin' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Resumen</a>
         <a href="{% url 'punto_venta' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Punto de Venta</a>
         <a href="{% url 'inventario' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Inventario</a>
         <a href="{% url 'reporte_finanzas' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Reportes</a>
+        <a href="{% url 'cotizador_impresiones' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-[#4a2020] hover:text-white">Cotizador</a>
         
         {% if request.session.user_role == 'ADMIN' %}
-        <a href="{% url 'menu_administracion' %}"  class="block rounded-md px-3 py-2 text-base font-medium text-red-200 border-l-4 border-red-500 bg-[#2a1010]/50 hover:bg-[#4a2020] hover:text-white">Administración</a>
+        <div class="mt-2 pt-2 border-t border-[#4a2020]">
+            <a href="{% url 'menu_administracion' %}" class="flex items-center gap-2 rounded-md px-3 py-2 text-base font-bold text-orange-100 bg-orange-600/20 hover:bg-orange-600 hover:text-white transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Administración
+            </a>
+        </div>
         {% endif %}
       </div>
-      <div class="border-t border-gray-700 pt-4 pb-3">
+      
+      <div class="border-t border-[#4a2020] pt-4 pb-3">
         <div class="flex items-center px-5">
           <div class="shrink-0">
-              
              {% if request.session.user_photo %}
                 <img class="h-10 w-10 rounded-full object-cover border-2 border-white/10" src="{{ request.session.user_photo }}" alt="Perfil">
              {% else %}
@@ -152,7 +171,6 @@
                     {{ request.session.user_name|slice:":1"|default:"U" }}
                 </div>
              {% endif %}
-
           </div>
           <div class="ml-3">
             <div class="text-base font-medium leading-none text-white">{{ request.session.user_name }}</div>

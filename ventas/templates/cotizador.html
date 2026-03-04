@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block header_title %}Cotizador de Impresiones CMYK{% endblock %}
+
+{% block content %}
+<script src="//unpkg.com/alpinejs" defer></script>
+<style>
+    [x-cloak] { display: none !important; }
+    .drop-zone { border: 2px dashed #cbd5e1; transition: all 0.3s ease; }
+    .drop-zone.dragover { border-color: #3b82f6; background-color: #eff6ff; }
+</style>
+
+<div class="max-w-7xl mx-auto pb-20 px-4" x-data="inkCalculator()">
+    
+    <div class="flex flex-col lg:flex-row gap-6">
+        
+        <div class="w-full lg:w-2/3 flex flex-col gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-lg font-black text-gray-800 mb-4">Análisis de Documento</h2>
+                
+                <div id="drop-zone" class="drop-zone rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer bg-gray-50"
+                     @dragover.prevent="$el.classList.add('dragover')"
+                     @dragleave.prevent="$el.classList.remove('dragover')"
+                     @drop.prevent="handleDrop($event)"
+                     @click="$refs.fileInput.click()">
+                    
+                    <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <p class="text-gray-600 font-bold text-center">Arrastra tu PDF o Imagen aquí<br><span class="text-sm font-normal">o haz clic para buscar en tus archivos</span></p>
+                    <input type="file" x-ref="fileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="handleFileSelect($event)">
+                </div>
+
+                <div x-show="isAnalyzing" class="mt-6 text-center text-blue-600 font-bold animate-pulse">
+                    <svg class="w-8 h-8 animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Analizando cobertura CMYK píxel por píxel...
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" x-show="pages.length > 0" x-cloak>
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 uppercase text-[10px] tracking-wider font-black">
+                            <th class="p-4">Hoja</th>
+                            <th class="p-4 text-center text-cyan-600">Cian</th>
+                            <th class="p-4 text-center text-fuchsia-600">Magenta</th>
+                            <th class="p-4 text-center text-yellow-500">Amarillo</th>
+                            <th class="p-4 text-center text-gray-900">Negro</th>
+                            <th class="p-4 text-right bg-blue-50 text-blue-800">Costo Base</th>
+                            <th class="p-4 text-right bg-green-50 text-green-800">Precio Sugerido</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <template x-for="p in pages" :key="p.page">
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-4 font-bold text-gray-800" x-text="'Pág. ' + p.page"></td>
+                                <td class="p-4 text-center font-mono text-cyan-700" x-text="p.c + '%'"></td>
+                                <td class="p-4 text-center font-mono text-fuchsia-700" x-text="p.m + '%'"></td>
+                                <td class="p-4 text-center font-mono text-yellow-600" x-text="p.y + '%'"></td>
+                                <td class="p-4 text-center font-mono text-gray-900" x-text="p.k + '%'"></td>
+                                <td class="p-4 text-right font-mono bg-blue-50/30" x-text="formatMoney(calculatePageCost(p))"></td>
+                                <td class="p-4 text-right font-black text-green-700 bg-green-50/30 text-lg" x-text="formatMoney(calculatePageSale(p))"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-1/3">
+            <div class="bg-white p-6 rounded-xl shadow-xl border-t-4 border-[#3e1717] sticky top-6">
+                <h2 class="text-xl font-black text-gray-900 mb-2">Total a Cobrar</h2>
+                <div class="text-5xl font-black text-green-600 mb-6" x-text="formatMoney(grandTotal)"></div>
+
+                <div class="space-y-4 pt-4 border-t border-gray-200">
+                    <h3 class="text-sm font-black text-gray-500 uppercase tracking-wider mb-2">Configuración Real</h3>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700">Tinta Color (CMY)</label>
+                            <div class="relative"><span class="absolute left-2 top-2 font-bold text-gray-400">$</span>
+                            <input type="number" x-model.number="config.bottleColor" class="w-full pl-6 pr-2 py-2 border-2 rounded-lg text-right font-bold focus:border-[#3e1717] outline-none"></div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700">Tinta Negra (K)</label>
+                            <div class="relative"><span class="absolute left-2 top-2 font-bold text-gray-400">$</span>
+                            <input type="number" x-model.number="config.bottleBlack" class="w-full pl-6 pr-2 py-2 border-2 rounded-lg text-right font-bold focus:border-[#3e1717] outline-none"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500">Rendimiento (Hojas)</label>
+                            <input type="number" x-model.number="config.yieldPages" class="w-full px-3 py-2 border-2 rounded-lg text-right font-bold focus:border-[#3e1717] outline-none" title="Rendimiento real al 5%">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500">Costo Hoja Blanca</label>
+                            <input type="number" step="0.10" x-model.number="config.paperCost" class="w-full px-3 py-2 border-2 rounded-lg text-right font-bold focus:border-[#3e1717] outline-none">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-200 mt-2">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Margen de Ganancia General</label>
+                        <div class="flex items-center gap-3">
+                            <input type="range" min="100" max="500" step="10" x-model.number="config.marginPct" class="flex-1 accent-[#3e1717]">
+                            <span class="font-black text-[#3e1717] w-12 text-right" x-text="config.marginPct + '%'"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-[10px] text-gray-400 text-center font-medium">
+                    * Precio mínimo garantizado de $2.50 MXN por hoja a color.
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function inkCalculator() {
+        return {
+            isAnalyzing: false,
+            pages: [],
+            
+            // CONFIGURACIÓN PURA (Sin costos fantasmas)
+            config: {
+                bottleColor: 229.00,  
+                bottleBlack: 229.00,  
+                yieldPages: 4500,     
+                paperCost: 0.50,      
+                marginPct: 400        // Volvemos al 300% porque ya quitamos el costo operativo que inflaba todo
+            },
+
+            get costPer1PercentColor() { return this.config.bottleColor / (this.config.yieldPages * 5); },
+            get costPer1PercentBlack() { return this.config.bottleBlack / (this.config.yieldPages * 5); },
+
+            handleDrop(e) {
+                this.$el.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) this.uploadFile(files[0]);
+            },
+
+            handleFileSelect(e) {
+                const files = e.target.files;
+                if (files.length > 0) this.uploadFile(files[0]);
+            },
+
+            async uploadFile(file) {
+                this.isAnalyzing = true;
+                this.pages = [];
+                
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/api/cotizador/analizar/', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.pages = data.pages;
+                    } else {
+                        alert(data.message);
+                    }
+                } catch (error) {
+                    alert('Error al conectar con el servidor.');
+                }
+                this.isAnalyzing = false;
+            },
+
+            calculatePageCost(pageData) {
+                const colorCost = (pageData.c + pageData.m + pageData.y) * this.costPer1PercentColor;
+                const blackCost = pageData.k * this.costPer1PercentBlack;
+                
+                // Costo puro y duro: Solo tinta y papel
+                return colorCost + blackCost + this.config.paperCost;
+            },
+
+            calculatePageSale(pageData) {
+                const realCost = this.calculatePageCost(pageData);
+                let suggestedSale = realCost * (1 + (this.config.marginPct / 100));
+                
+                let finalPrice = Math.ceil(suggestedSale * 2) / 2; 
+                
+                // REGLA ESTRICTA: Mínimo $2.50 para cualquier hoja procesada
+                if (finalPrice < 2.50) {
+                    finalPrice = 2.50;
+                }
+                
+                return finalPrice;
+            },
+
+            get grandTotal() {
+                if (this.pages.length === 0) return 0;
+                return this.pages.reduce((sum, page) => sum + this.calculatePageSale(page), 0);
+            },
+
+            formatMoney(val) { return new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN'}).format(val); }
+        }
+    }
+</script>
+{% endblock %}

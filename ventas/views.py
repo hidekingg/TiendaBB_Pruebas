@@ -78,9 +78,59 @@ def imprimir_ticket_view(request, sale_id):
     if 'user_id' not in request.session: 
         return HttpResponse('No autorizado', status=401)
     
-    # Obtenemos la venta y sus detalles
     sale = get_object_or_404(Sale.objects.select_related('user'), sale_id=sale_id)
-    detalles = SaleDetail.objects.filter(sale=sale).select_related('product')
+    detalles = list(SaleDetail.objects.filter(sale=sale).select_related('product'))
+    
+    # --- ALGORITMO MULTI-PROMOCIÓN Y SUBTOTAL REAL ---
+    total_ahorro = 0
+    subtotal_original = 0
+    
+    for d in detalles:
+        # 1. Cuánto costaría esto a precio normal
+        costo_base = d.quantity * d.unit_price
+        
+        # SOLUCIÓN AQUÍ: Sumamos también el costo del envase para que el subtotal visual sea perfecto
+        subtotal_original += (costo_base + d.deposit_charged)
+        
+        d.discount = 0
+        d.promo_desc = ""
+        
+        # 2. Obtener todas las ofertas activas, de mayor a menor
+        promos = list(Promotion.objects.filter(product=d.product, is_active=True).order_by('-trigger_quantity'))
+        
+        if promos:
+            remaining_qty = d.quantity
+            costo_con_promo = 0
+            promos_aplicadas = []
+            
+            for promo in promos:
+                if remaining_qty >= promo.trigger_quantity:
+                    veces_aplica = int(remaining_qty // promo.trigger_quantity)
+                    remaining_qty = remaining_qty % promo.trigger_quantity # Lo que sobra
+                    
+                    costo_con_promo += veces_aplica * promo.promo_price
+                    desc_texto = promo.description if promo.description else f"{int(promo.trigger_quantity)}x${promo.promo_price}"
+                    
+                    if veces_aplica > 1:
+                        promos_aplicadas.append(f"{veces_aplica} paq de {desc_texto}")
+                    else:
+                        promos_aplicadas.append(desc_texto)
+            
+            # Si sobraron piezas sueltas que no alcanzan promo, se cobran normal
+            costo_con_promo += remaining_qty * d.unit_price
+            
+            # Calculamos el ahorro real (La resta se hace sin envase para no alterar el descuento)
+            ahorro = costo_base - costo_con_promo
+            if ahorro > 0:
+                d.discount = ahorro
+                d.subtotal = costo_con_promo  
+                d.promo_desc = " + ".join(promos_aplicadas)
+                total_ahorro += ahorro
+
+    # Guardamos los totales corregidos en memoria
+    sale.subtotal_original = subtotal_original
+    sale.total_discount = total_ahorro
+    # ---------------------------------------------------
     
     # Formateo de fecha seguro
     if timezone.is_aware(sale.created_at):
@@ -94,7 +144,6 @@ def imprimir_ticket_view(request, sale_id):
         'fecha': fecha_str
     }
     
-    # Renderizamos la plantilla de ticket que creamos
     return render(request, 'ticket_impresion.html', context)
 
 def view_admin_proveedores(request):

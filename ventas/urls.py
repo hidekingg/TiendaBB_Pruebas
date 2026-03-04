@@ -2,6 +2,7 @@
 from django.urls import path
 from . import views
 from . import apis  # <--- IMPORTAMOS EL NUEVO ARCHIVO DE APIS
+from . import cotizador_views
 
 urlpatterns = [
     # Login y Logout
@@ -81,4 +82,8 @@ urlpatterns = [
     path('api/reportes/zombies/', apis.api_reporte_zombies, name='api_reporte_zombies'),
     path('api/reportes/proveedores/', apis.api_reporte_proveedores, name='api_reporte_proveedores'),
     path('api/reportes/horas/', apis.api_reporte_horas, name='api_reporte_horas'),
+
+    #----------------------------
+    path('herramientas/cotizador/', cotizador_views.view_cotizador, name='cotizador_impresiones'),
+    path('api/cotizador/analizar/', cotizador_views.api_analyze_file, name='api_analyze_file'),
 ]
