@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-o)vk0g*%elm6ii#2z$zvy7shdad-$7k-o$jb$n(!d42^k1rwe&'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['*'] 
+ALLOWED_HOSTS = ['192.168.X.X', 'localhost', '127.0.0.1']
 # El asterisco significa "permitir a cualquiera que llegue a esta IP"
 
 
@@ -127,6 +127,7 @@ USE_TZ = True # Deja esto en True para que Django maneje las zonas
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
