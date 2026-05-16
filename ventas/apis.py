@@ -427,14 +427,37 @@ def api_libreta_buscar(request):
 def api_libreta_actualizar(request):
     if 'user_id' not in request.session: return JsonResponse({'error': '401'}, status=401)
     if request.method != 'POST': return JsonResponse({'error': '405'}, status=405)
+    
     try:
-        ps, created = ProductSupplier.objects.update_or_create(
-            product_id=request.POST.get('product_id'),
-            supplier_id=request.POST.get('supplier_id'),
-            defaults={'current_cost': request.POST.get('cost', 0), 'purchase_notes': request.POST.get('notes', '')}
-        )
+        p_id = request.POST.get('product_id')
+        s_id = request.POST.get('supplier_id')
+        nuevo_costo = request.POST.get('cost', 0)
+        nuevas_notas = request.POST.get('notes', '')
+
+        # 1. Buscamos el registro exacto usando ambos IDs
+        registro = ProductSupplier.objects.filter(product_id=p_id, supplier_id=s_id)
+        
+        if registro.exists():
+            # 2. Si existe, usamos .update() directo. 
+            # Esto obliga a Django a ejecutar: WHERE product_id = X AND supplier_id = Y
+            registro.update(
+                current_cost=nuevo_costo,
+                purchase_notes=nuevas_notas,
+                last_updated=timezone.now() # .update() no refresca fechas automáticamente, lo forzamos.
+            )
+        else:
+            # 3. Si no existe, creamos el registro nuevo
+            ProductSupplier.objects.create(
+                product_id=p_id,
+                supplier_id=s_id,
+                current_cost=nuevo_costo,
+                purchase_notes=nuevas_notas
+            )
+
         return JsonResponse({'status': 'success', 'message': 'Precio actualizado'})
-    except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)})
+        
+    except Exception as e: 
+        return JsonResponse({'status': 'error', 'message': str(e)})
 
 @csrf_exempt
 def api_proveedor_accion(request):
